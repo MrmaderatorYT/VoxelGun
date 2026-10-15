@@ -1,0 +1,66 @@
+
+=== voxel-strike-horizontal-color.svg  (2422 bytes)
+viewBox 0 0 2220 256 · aspect 8.672 (extra-wide)
+colours 2: #f1f5f7 #ff8a18 · gradients 0 · anchors 138
+margins L21.3 R23.9 T32.0 B32.8 · bbox fill 0.731
+· INFO [precision] Coordinates with 4+ decimals: round to 0–2 decimals to reduce size and reveal misalignments.
+· INFO [extra-wide] Extra-wide lockup (>4.5:1) shrinks badly; provide a stacked lockup and a standalone symbol.
+production-readiness score: 98/100 (heuristic)
+
+=== voxel-strike-horizontal-light.svg  (2422 bytes)
+viewBox 0 0 2220 256 · aspect 8.672 (extra-wide)
+colours 2: #121923 #ff8a18 · gradients 0 · anchors 138
+margins L21.3 R23.9 T32.0 B32.8 · bbox fill 0.731
+· INFO [precision] Coordinates with 4+ decimals: round to 0–2 decimals to reduce size and reveal misalignments.
+· INFO [extra-wide] Extra-wide lockup (>4.5:1) shrinks badly; provide a stacked lockup and a standalone symbol.
+production-readiness score: 98/100 (heuristic)
+
+=== voxel-strike-horizontal-mono.svg  (2422 bytes)
+viewBox 0 0 2220 256 · aspect 8.672 (extra-wide)
+colours 1: #111111 · gradients 0 · anchors 138
+margins L21.3 R23.9 T32.0 B32.8 · bbox fill 0.731
+· INFO [precision] Coordinates with 4+ decimals: round to 0–2 decimals to reduce size and reveal misalignments.
+· INFO [extra-wide] Extra-wide lockup (>4.5:1) shrinks badly; provide a stacked lockup and a standalone symbol.
+production-readiness score: 98/100 (heuristic)
+
+=== voxel-strike-stacked-color.svg  (6908 bytes)
+viewBox 0 0 640 256 · aspect 2.5 (wide)
+colours 3: #121923 #f1f5f7 #ff8a18 · gradients 0 · anchors 424
+margins L36.1 R44.0 T8.0 B17.4 · bbox fill 0.788
+▲ WARN [complex] 424 anchor points — more than 95% of comparable reference logos (median 75.0). Simplify: fewer points, merged shapes, less detail.
+production-readiness score: 92/100 (heuristic)
+
+=== voxel-strike-stacked-light.svg  (2424 bytes)
+viewBox 0 0 640 256 · aspect 2.5 (wide)
+colours 2: #121923 #ff8a18 · gradients 0 · anchors 148
+margins L42.0 R55.9 T8.0 B35.3 · bbox fill 0.704
+· INFO [off-centre-y] Vertical margins differ (top 8.0, bottom 35.3). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 99/100 (heuristic)
+
+=== voxel-strike-stacked-mono.svg  (2424 bytes)
+viewBox 0 0 640 256 · aspect 2.5 (wide)
+colours 1: #111111 · gradients 0 · anchors 148
+margins L42.0 R55.9 T8.0 B35.3 · bbox fill 0.704
+· INFO [off-centre-y] Vertical margins differ (top 8.0, bottom 35.3). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 99/100 (heuristic)
+
+=== voxel-strike-stacked-reversed.svg  (2424 bytes)
+viewBox 0 0 640 256 · aspect 2.5 (wide)
+colours 1: #ffffff · gradients 0 · anchors 148
+margins L42.7 R56.6 T8.0 B35.9 · bbox fill 0.7
+· INFO [off-centre-y] Vertical margins differ (top 8.0, bottom 35.9). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 99/100 (heuristic)
+
+=== voxel-strike-symbol-color.svg  (325 bytes)
+viewBox 0 0 256 256 · aspect 1.0 (square)
+colours 2: #f1f5f7 #ff8a18 · gradients 0 · anchors 23
+margins L50.0 R50.0 T10.0 B35.6 · bbox fill 0.501
+· INFO [off-centre-y] Vertical margins differ (top 10.0, bottom 35.6). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 99/100 (heuristic)
+
+=== voxel-strike-symbol-small.svg  (305 bytes)
+viewBox 0 0 256 256 · aspect 1.0 (square)
+colours 2: #f1f5f7 #ff8a18 · gradients 0 · anchors 18
+margins L50.0 R50.0 T18.0 B35.6 · bbox fill 0.482
+· INFO [off-centre-y] Vertical margins differ (top 18.0, bottom 35.6). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 99/100 (heuristic)

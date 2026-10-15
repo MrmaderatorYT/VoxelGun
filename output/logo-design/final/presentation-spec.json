@@ -1,0 +1,50 @@
+{
+  "brand": "Voxel Strike",
+  "brief": "Мобільний аркадний шутер з блоковими світами, швидким рухом і руйнуванням оточення.",
+  "adjectives": [
+    "Блоковий",
+    "Швидкий",
+    "Контрастний"
+  ],
+  "criteria": "Читабельний титул у меню та впізнавана іконка Android.",
+  "brand_color": "#ff8a18",
+  "tile_color": "#121923",
+  "greyscale": false,
+  "final": true,
+  "industry": "consumer-app",
+  "mockups": [
+    "app-icon",
+    "website",
+    "social",
+    "sticker",
+    "tshirt",
+    "favicon-tab"
+  ],
+  "nav": [
+    "Гра",
+    "Карти",
+    "Завантажити"
+  ],
+  "deck_title": "Block Impact",
+  "concepts": [
+    {
+      "name": "Block Impact",
+      "symbol": "source/voxel-strike-symbol-light.svg",
+      "symbol_on_tile": "source/voxel-strike-symbol-small.svg",
+      "symbol_on_dark": "source/voxel-strike-symbol-small.svg",
+      "lockup": "source/voxel-strike-stacked-light.svg",
+      "lockup_on_dark": "source/voxel-strike-stacked-color.svg",
+      "stacked": "source/voxel-strike-stacked-light.svg",
+      "stacked_on_tile": "source/voxel-strike-stacked-color.svg",
+      "idea": "Масивний ігровий титул із воксельними уламками над X.",
+      "rationale": [
+        "Світлий VOXEL і помаранчевий STRIKE відповідають оформленню меню.",
+        "Авторські векторні літери не залежать від шрифтів.",
+        "Компактний X переносить характер титулу в іконку."
+      ],
+      "avatar": "web/voxel-strike-symbol-app-icon.svg"
+    }
+  ],
+  "recommendation": "Затверджений варіант A — Block Impact.",
+  "next_steps": []
+}

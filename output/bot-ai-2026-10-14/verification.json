@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-14",
+  "scope": "Bot navigation, sound perception, weapon diversity and modifier-aware tactics",
+  "unit_tests": {
+    "suites": 82,
+    "tests": 439,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "new_regression_tests": 14,
+  "android_runtime_verified": false,
+  "android_runtime_limitation": "No connected device or configured emulator/system image",
+  "source_files": [
+    "app/src/main/java/com/ccs/voxelgun/game/BotBrain.java",
+    "app/src/main/java/com/ccs/voxelgun/game/Match.java"
+  ],
+  "test_files": [
+    "app/src/test/java/com/ccs/voxelgun/game/BotReliabilityTest.java",
+    "app/src/test/java/com/ccs/voxelgun/game/BotWeaponTacticsTest.java",
+    "app/src/androidTest/java/com/ccs/voxelgun/BotMovementInstrumentedTest.java"
+  ],
+  "validation_status": "Complete",
+  "apk": "app/build/outputs/apk/debug/app-debug.apk",
+  "apk_sha256": "e703e0e0305ca66a289fba2a2d62f5ae0fc038b9b3283d143c7bacf2d11c771c",
+  "builds": {
+    "assembleDebug": "passed",
+    "assembleDebugAndroidTest": "passed"
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 91
+  },
+  "baseline": "Full existing unit test suite passed before source edits",
+  "verification_notes": [
+    "One prior full run caught a weapon-switch timing regression; corrected before final successful run.",
+    "Initial offline lint attempt lacked cached lint dependencies; final online no-configuration-cache run succeeded.",
+    "Native instrumentation compiled but not executed; no device, AVD or system image available."
+  ]
+}

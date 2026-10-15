@@ -1,0 +1,53 @@
+{
+  "direction": "A — Block Impact",
+  "build": "assembleDebug succeeded",
+  "device_install": "Pixel 7a installation succeeded; visual menu check unavailable because device is locked",
+  "masters": [
+    {
+      "file": "source/voxel-strike-horizontal-color.svg",
+      "vector_only": true
+    },
+    {
+      "file": "source/voxel-strike-horizontal-light.svg",
+      "vector_only": true
+    },
+    {
+      "file": "source/voxel-strike-horizontal-mono.svg",
+      "vector_only": true
+    },
+    {
+      "file": "source/voxel-strike-stacked-color.svg",
+      "vector_only": true
+    },
+    {
+      "file": "source/voxel-strike-stacked-light.svg",
+      "vector_only": true
+    },
+    {
+      "file": "source/voxel-strike-stacked-mono.svg",
+      "vector_only": true
+    },
+    {
+      "file": "source/voxel-strike-stacked-reversed.svg",
+      "vector_only": true
+    },
+    {
+      "file": "source/voxel-strike-symbol-color.svg",
+      "vector_only": true
+    },
+    {
+      "file": "source/voxel-strike-symbol-light.svg",
+      "vector_only": true
+    },
+    {
+      "file": "source/voxel-strike-symbol-small.svg",
+      "vector_only": true
+    }
+  ],
+  "transparent_png_dimensions": "2048x819 stacked; 2048x236 horizontal",
+  "legacy_icon_densities": "mdpi through xxxhdpi",
+  "font_dependency": false,
+  "svg_audit": "No FAIL; intentional layered extrusion increases anchor count",
+  "android_apk_sha256": "6ea2490c5a8274c33fa8aab9dd7bc68350bef60772796272c2d10c10aeb00237",
+  "background_usage": "Colored white X is for dark surfaces; symbol-light is for light surfaces. Color stacked title for dark; stacked-light for light."
+}

@@ -1,0 +1,280 @@
+{
+  "generatedAt": "2026-10-14T12:17:49.099922+00:00",
+  "scope": "Bot tactics expansion after the initial bot reliability, weapon and movement/audio improvements.",
+  "build": {
+    "status": "PASS",
+    "command": "./gradlew testDebugUnitTest assembleDebug assembleDebugAndroidTest lintDebug --offline --no-configuration-cache --console=plain",
+    "javaHome": "/Users/dmitroparhomenko/Library/Java/JavaVirtualMachines/jbr-21.0.11/Contents/Home",
+    "durationSeconds": 155
+  },
+  "unitTests": {
+    "suites": 96,
+    "tests": 526,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "status": "PASS",
+    "severityCounts": {
+      "Warning": 91
+    },
+    "report": "app/build/reports/lint-results-debug.html"
+  },
+  "androidInstrumentedTests": {
+    "compiled": true,
+    "executed": false,
+    "reason": "No connected Android device or installed emulator/system image was available."
+  },
+  "simulation": {
+    "totalScenarios": 76,
+    "statusCounts": {
+      "PASS": 73,
+      "WARN": 3
+    },
+    "activeBotSeconds": 79858.532,
+    "invalidSamples": 0,
+    "coverage": "All 26 maps in recommended modes plus explicit modifier/mode controls; six 100-player Battlefield scenarios; 34 extended Pirate Cove/Sky Islands scenarios. This is a bounded deterministic sample, not every possible combination.",
+    "reports": [
+      {
+        "path": "output/bot-tactics-expansion/scenarios-verified/scenarios.json",
+        "completedScenarios": 36,
+        "plannedScenarios": 36,
+        "statusCounts": {
+          "PASS": 36
+        },
+        "requestedSeconds": 35.0,
+        "activeBotSeconds": 8673.365,
+        "maximumRecordedStallSeconds": 0.067,
+        "spinningBotSeconds": 0.0,
+        "maximumPlayers": 16,
+        "sha256": "e60a5513ee54d44aa87ca01624eb47e59c29ea642274fb13ac54e1cefd515d0e"
+      },
+      {
+        "path": "output/bot-tactics-expansion/battlefield-stress-verified/scenarios.json",
+        "completedScenarios": 6,
+        "plannedScenarios": 6,
+        "statusCounts": {
+          "PASS": 6
+        },
+        "requestedSeconds": 90.0,
+        "activeBotSeconds": 52754.119,
+        "maximumRecordedStallSeconds": 0.217,
+        "spinningBotSeconds": 0.0,
+        "maximumPlayers": 100,
+        "sha256": "c3fec6ff683d6c530b6909d695c3ac322b31d21d1f4875ed33364ba462b52ecd"
+      },
+      {
+        "path": "output/bot-tactics-expansion/pirate-sky-long-verified/scenarios.json",
+        "completedScenarios": 34,
+        "plannedScenarios": 34,
+        "statusCounts": {
+          "PASS": 31,
+          "WARN": 3
+        },
+        "requestedSeconds": 90.0,
+        "activeBotSeconds": 18431.048,
+        "maximumRecordedStallSeconds": 0.9,
+        "spinningBotSeconds": 0.1,
+        "maximumPlayers": 8,
+        "sha256": "87376482251617c2ebc780ffe7e9376bd09ac404d73e99fdb83c7bb99ab9ea00"
+      }
+    ],
+    "warnings": [
+      {
+        "map": "pirate_cove",
+        "mode": "KNIFE_FIGHT",
+        "difficulty": "RECRUIT",
+        "seed": 20261526,
+        "modifiers": 0,
+        "issues": [
+          "bot 2 unexplained idle fraction 0.309"
+        ],
+        "bots": [
+          {
+            "id": 2,
+            "activeSeconds": 80.05,
+            "idleSeconds": 24.75
+          }
+        ]
+      },
+      {
+        "map": "sky_islands",
+        "mode": "KNIFE_FIGHT",
+        "difficulty": "REGULAR",
+        "seed": 20261627,
+        "modifiers": 1801,
+        "issues": [
+          "bot 1 unexplained idle fraction 0.274",
+          "bot 2 unexplained idle fraction 0.302"
+        ],
+        "bots": [
+          {
+            "id": 1,
+            "activeSeconds": 69.8,
+            "idleSeconds": 19.15
+          },
+          {
+            "id": 2,
+            "activeSeconds": 71.567,
+            "idleSeconds": 21.633
+          }
+        ]
+      },
+      {
+        "map": "sky_islands",
+        "mode": "KNIFE_FIGHT",
+        "difficulty": "VETERAN",
+        "seed": 20271634,
+        "modifiers": 48,
+        "issues": [
+          "bot 2 unexplained idle fraction 0.306"
+        ],
+        "bots": [
+          {
+            "id": 2,
+            "activeSeconds": 66.383,
+            "idleSeconds": 20.3
+          }
+        ]
+      }
+    ],
+    "warningInvestigation": {
+      "method": "Deterministic replays inspected by bot_diagnostics agent before final verification.",
+      "longestStationarySeconds": {
+        "pirate_cove_recruit_bot_2": 3.42,
+        "sky_islands_regular_bot_1": 2.57,
+        "sky_islands_regular_bot_2": 3.8,
+        "sky_islands_veteran_bot_2": 3.5
+      },
+      "finding": "Bots resumed movement; no persistent stranded tail. One Sky Islands interval was vertical jump/landing without horizontal displacement. Accumulated idle warnings remain visible and thresholds were not relaxed."
+    },
+    "metricNotes": [
+      "Recorded stalls exclude an initial 1.5-second grace period.",
+      "Active bot-seconds are summed from report values rounded to three decimal places.",
+      "Timing measures desktop JVM Match.update with Java voxel fallback, not Android rendering, audio, native JNI or device FPS."
+    ]
+  },
+  "difficultyRegression": {
+    "measurement": "Actual bot.firing simulation ticks; ammunition changes across weapon swaps are not counted as shots.",
+    "activitySeeds": 2,
+    "ladderSeeds": 10,
+    "secondsPerMatch": 45,
+    "recruit": {
+      "shots": 2440,
+      "kills": 57
+    },
+    "elite": {
+      "shots": 3192,
+      "kills": 71
+    },
+    "note": "Strict Elite > Recruit shots and kills assertions retained. Equal-difficulty self-play aggregate is a regression check, not a head-to-head win-rate estimate."
+  },
+  "artifacts": [
+    {
+      "path": "app/build/outputs/apk/debug/app-debug.apk",
+      "bytes": 14155904,
+      "sha256": "aecb55810c6dcb4b8e86dbd912d83e26872f8e03baa26a6300f3b34dc1674a4a"
+    },
+    {
+      "path": "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk",
+      "bytes": 807059,
+      "sha256": "6ab554c50e936ff8edf4f06fe29fd3d4e1f17a042da0320d63fd5a15a2cbb9bf"
+    }
+  ],
+  "sourceSnapshot": {
+    "files": [
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotBhopController.java",
+        "change": "modified",
+        "sha256": "bd57e4147cb9950d287b83da8d72672b94abe73f43f32d6d3423f17680a65175"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotBrain.java",
+        "change": "modified",
+        "sha256": "71b72f264092754a598371643dd911d155eb71f14478793d8c9171220a17e9a4"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotCoverCycle.java",
+        "change": "added",
+        "sha256": "b0fb6fd6729d254f73c2a908f8a5d0c99f03d39168a27ccf89744ae816a39e01"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotDiagnostics.java",
+        "change": "added",
+        "sha256": "58e4bf0f0b7210aac9b5f59bb641434ecbd24b8eddbdb9993b7f84fde6a6d30e"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotEvasionController.java",
+        "change": "modified",
+        "sha256": "01d57d5077b78ae6c8938d587255e87c03983b209e2292d81de4d97acd51f653"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotHearing.java",
+        "change": "added",
+        "sha256": "d2adea7f7b4fcdeacd3b681ebed965ae397dd54fa1632d2d9cfd45bf9283d14d"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotLocalRecovery.java",
+        "change": "added",
+        "sha256": "6827c6741b6ed2d6a70c2a0867a9ad2791e60f33d4d28a56c20f2872101dca4c"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotMovementSafety.java",
+        "change": "modified",
+        "sha256": "f8460e3e7d4adf53e549166cab645210d1b2c6538127fe1b31ff7e786512d7e3"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotPositionPlanner.java",
+        "change": "added",
+        "sha256": "75eb5068184aba110911024c8ace66aa8feacd65152ce14210efd9c028cbdd78"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotRouteMemory.java",
+        "change": "added",
+        "sha256": "dcb619f9cd1478c1e31a4a5eb8a6b5cb128954a03ae1782e53541acc7bbbaa53"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotSwimmingController.java",
+        "change": "modified",
+        "sha256": "c60feecd2fc8acf91bf7bcb3c39398bb0b810001f467a6e580e192d9fbf59c1a"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/BotTacticalBudget.java",
+        "change": "added",
+        "sha256": "89ec5a8783e6e3cdb4381fe84008645e5ba789a1bb33f1282ec219ca621bd2e8"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/Match.java",
+        "change": "modified",
+        "sha256": "fb319b097244b3f842f8b004a95cdac9191d041e0b1abe9045d55cf8a4a919c3"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/ObjectiveBotTactics.java",
+        "change": "modified",
+        "sha256": "20c6a54569b9e70229df34991b8145f8101ab431fa2a3ae2916620656e2e48a1"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/Objectives.java",
+        "change": "modified",
+        "sha256": "0238692b74e0477aebe40a40f270b3fd3c2e6caf2298fd177abfa08d9a13382f"
+      },
+      {
+        "path": "app/src/main/java/com/ccs/voxelgun/game/PathFinder.java",
+        "change": "modified",
+        "sha256": "b31757aa5543c7481679b107e91582ce41f06fcb5939d78723a51fbe20673403"
+      },
+      {
+        "path": "ARCHITECTURE.md",
+        "change": "modified",
+        "sha256": "2db4c38e0976c30fae25c3591223ce7a88e4e04654312cc06ccc257d6be257a0"
+      }
+    ],
+    "patch": "output/bot-tactics-expansion/changes.patch",
+    "patchScope": "Main game Java package and ARCHITECTURE.md compared with current-task baseline. Tests and runner files are present in the workspace but not included in this baseline patch."
+  },
+  "limitations": [
+    "Three extended Knife Fight scenarios retain accumulated idle-time warnings.",
+    "No Android device playtest, rendered/audio validation, or device performance measurement was possible."
+  ]
+}

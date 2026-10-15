@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Authored game palette: hot ammunition orange, cold HUD cyan and gunmetal panels. -->
+    <color name="md_primary">#FF8A1F</color>
+    <color name="md_on_primary">#180B00</color>
+    <color name="md_primary_container">#4B2106</color>
+    <color name="md_on_primary_container">#FFD8B7</color>
+    <color name="md_secondary">#57D9DE</color>
+    <color name="md_on_secondary">#001F22</color>
+    <color name="md_secondary_container">#12363D</color>
+    <color name="md_on_secondary_container">#B5F8FA</color>
+    <color name="md_tertiary">#C5CFDA</color>
+    <color name="md_on_tertiary">#17202A</color>
+    <color name="md_tertiary_container">#28333F</color>
+    <color name="md_on_tertiary_container">#E6EDF5</color>
+    <color name="md_error">#FF6C64</color>
+    <color name="md_on_error">#240000</color>
+    <color name="md_background">#05080D</color>
+    <color name="md_on_background">#F2F6F8</color>
+    <color name="md_surface">#080D13</color>
+    <color name="md_on_surface">#F2F6F8</color>
+    <color name="md_surface_variant">#151D26</color>
+    <color name="md_on_surface_variant">#A9B4BF</color>
+    <color name="md_outline">#5C6977</color>
+
+    <color name="game_accent">#FF8A1F</color>
+    <color name="game_accent_light">#FFB04A</color>
+    <color name="game_hud">#57D9DE</color>
+    <color name="game_text">#F4F7FA</color>
+    <color name="game_text_muted">#9EABB8</color>
+    <color name="game_text_dim">#71808F</color>
+    <color name="game_panel">#E60A0F16</color>
+    <color name="game_panel_high">#F20F1620</color>
+    <color name="game_panel_soft">#C9121A24</color>
+    <color name="game_line">#516171</color>
+    <color name="game_ripple">#66FFFFFF</color>
+</resources>

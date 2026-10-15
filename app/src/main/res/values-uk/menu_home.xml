@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="menu_home_eyebrow">ТАКТИЧНИЙ VOXEL-ШУТЕР</string>
+    <string name="menu_home_description">Швидкі арени. Битви на 100 бійців.</string>
+    <string name="menu_home_level">РІВЕНЬ %1$d</string>
+    <string name="menu_home_profile_edit">Профіль бійця. Змінити позивний</string>
+    <string name="menu_home_feature_title">МІСЬКИЙ ФРОНТ</string>
+    <string name="menu_home_feature_detail">Battle Field · Бій за міську площу</string>
+</resources>

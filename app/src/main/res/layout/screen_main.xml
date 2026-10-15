@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+
+    <ImageView android:id="@+id/menu_battle_scene"
+        android:layout_width="0dp" android:layout_height="0dp"
+        android:importantForAccessibility="no" android:scaleType="centerCrop"
+        android:src="@drawable/menu_battlefield_capture"
+        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent" />
+
+    <View android:layout_width="0dp" android:layout_height="0dp"
+        android:background="@drawable/bg_title_scrim" android:importantForAccessibility="no"
+        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent" />
+
+    <ScrollView android:id="@+id/main_menu_content"
+        android:layout_width="328dp" android:layout_height="0dp"
+        android:layout_marginStart="32dp" android:layout_marginTop="24dp" android:layout_marginBottom="24dp"
+        android:fillViewport="true" android:overScrollMode="never" android:scrollbars="none"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium" android:letterSpacing="0.13"
+                android:text="@string/menu_home_eyebrow" android:textColor="#FFC372" android:textSize="10sp" />
+            <ImageView android:id="@+id/menu_wordmark"
+                android:layout_width="216dp" android:layout_height="98dp" android:layout_marginTop="6dp"
+                android:contentDescription="@string/app_name" android:scaleType="fitStart"
+                android:src="@drawable/voxel_strike_wordmark" />
+            <TextView android:id="@+id/menu_tagline"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
+                android:fontFamily="sans-serif" android:lineSpacingExtra="3dp"
+                android:text="@string/menu_home_description" android:textColor="#BECDD9" android:textSize="14sp" />
+            <Space android:layout_width="1dp" android:layout_height="8dp" android:layout_weight="1" />
+            <LinearLayout android:id="@+id/main_menu_actions"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <com.google.android.material.button.MaterialButton android:id="@+id/button_play"
+                    style="@style/Widget.VoxelGun.Button.HomePrimary"
+                    android:layout_width="match_parent" android:layout_height="60dp"
+                    android:maxLines="1" android:text="@string/menu_play"
+                    app:icon="@drawable/ic_game_play" app:iconGravity="end" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
+                    android:layout_marginTop="8dp" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_arsenal"
+                        style="@style/Widget.VoxelGun.Button.HomeUtility"
+                        android:layout_width="0dp" android:layout_height="match_parent"
+                        android:layout_marginEnd="4dp" android:layout_weight="1"
+                        android:maxLines="1" android:text="@string/menu_skins"
+                        app:icon="@drawable/ic_game_crosshair" app:iconGravity="start" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_settings"
+                        style="@style/Widget.VoxelGun.Button.HomeUtility"
+                        android:layout_width="0dp" android:layout_height="match_parent"
+                        android:layout_marginStart="4dp" android:layout_weight="1"
+                        android:maxLines="1" android:text="@string/menu_settings"
+                        app:icon="@drawable/ic_game_sliders" app:iconGravity="start" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
+                    android:layout_marginTop="8dp" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_controls"
+                        style="@style/Widget.VoxelGun.Button.HomeUtility"
+                        android:layout_width="0dp" android:layout_height="match_parent"
+                        android:layout_marginEnd="4dp" android:layout_weight="1"
+                        android:maxLines="1" android:text="@string/menu_controls"
+                        app:icon="@drawable/ic_game_hud" app:iconGravity="start" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_stats"
+                        style="@style/Widget.VoxelGun.Button.HomeUtility"
+                        android:layout_width="0dp" android:layout_height="match_parent"
+                        android:layout_marginStart="4dp" android:layout_weight="1"
+                        android:maxLines="1" android:text="@string/menu_stats"
+                        app:icon="@drawable/ic_game_stats" app:iconGravity="start" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <com.google.android.material.card.MaterialCardView android:id="@+id/card_profile"
+        style="@style/Widget.VoxelGun.Card.Profile"
+        android:layout_width="264dp" android:layout_height="82dp"
+        android:layout_marginTop="24dp" android:layout_marginEnd="28dp"
+        android:clickable="true" android:contentDescription="@string/menu_home_profile_edit"
+        android:focusable="true" android:foreground="?attr/selectableItemBackground"
+        app:cardBackgroundColor="#B30B1520" app:strokeColor="#38B4C9D9"
+        app:layout_constraintTop_toTopOf="parent" app:layout_constraintEnd_toEndOf="parent">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+            android:orientation="vertical" android:paddingHorizontal="14dp" android:paddingVertical="10dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:gravity="center_vertical" android:orientation="horizontal">
+                <TextView android:id="@+id/text_player_name"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:ellipsize="end" android:fontFamily="sans-serif-condensed" android:maxLines="1"
+                    android:textColor="#F1F5F8" android:textSize="19sp" android:textStyle="bold" tools:text="Player" />
+                <TextView android:id="@+id/text_coins"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp"
+                    android:textColor="#FFC372" android:textSize="14sp" android:textStyle="bold" tools:text="11992 ¢" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="2dp" android:orientation="horizontal">
+                <TextView android:id="@+id/text_level"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:fontFamily="sans-serif-medium" android:letterSpacing="0.08" android:maxLines="1"
+                    android:textColor="#A9BDCD" android:textSize="10sp" tools:text="РІВЕНЬ 7" />
+                <TextView android:id="@+id/text_kd"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textColor="#A9BDCD" android:textSize="10sp" tools:text="K/D 2.33" />
+            </LinearLayout>
+            <com.google.android.material.progressindicator.LinearProgressIndicator android:id="@+id/progress_level"
+                android:layout_width="match_parent" android:layout_height="3dp" android:layout_marginTop="6dp"
+                android:max="100" app:indicatorColor="#FFC372" app:indicatorTrackGapSize="0dp"
+                app:trackColor="#35475C6D" app:trackCornerRadius="0dp"
+                app:trackStopIndicatorSize="0dp" app:trackThickness="3dp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <LinearLayout android:id="@+id/menu_scene_caption"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginEnd="32dp" android:layout_marginBottom="28dp"
+        android:gravity="end" android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent" app:layout_constraintBottom_toBottomOf="parent">
+        <View android:layout_width="28dp" android:layout_height="2dp" android:layout_marginBottom="8dp"
+            android:background="#FFC372" android:importantForAccessibility="no" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-condensed" android:letterSpacing="0.10"
+            android:text="@string/menu_home_feature_title" android:textColor="#F4F7FA"
+            android:textSize="16sp" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="3dp" android:fontFamily="sans-serif"
+            android:text="@string/menu_home_feature_detail" android:textColor="#B7C8D5" android:textSize="11sp" />
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

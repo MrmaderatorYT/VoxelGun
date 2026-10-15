@@ -1,0 +1,89 @@
+{
+  "name": "Voxel Strike",
+  "product": "Android voxel FPS with fast movement, destructible block worlds and tactical bots",
+  "adjectives": [
+    "energetic",
+    "blocky",
+    "sharp",
+    "readable",
+    "competitive"
+  ],
+  "audience": "Players of fast arcade shooters",
+  "applications": [
+    "Android app icon",
+    "main-menu logo",
+    "loading screen"
+  ],
+  "assumptions": [
+    "Use the exact current in-game name Voxel Strike",
+    "Explore geometry first in one colour; current orange/cyan palette is a later option"
+  ],
+  "avoid": [
+    "rifle illustration",
+    "skull",
+    "generic esports shield",
+    "ordinary crosshair",
+    "unmodified initials"
+  ],
+  "word_map": {
+    "voxel": [
+      "block",
+      "cell",
+      "step",
+      "fragment"
+    ],
+    "strike": [
+      "impact",
+      "split",
+      "speed",
+      "direction"
+    ],
+    "intersection": [
+      "a modular letter broken by impact",
+      "block letters with a moving fragment",
+      "a collision between two block forms"
+    ]
+  },
+  "longlist": [
+    {
+      "idea": "A V formed from block arms with an ejected upper voxel",
+      "score": 24
+    },
+    {
+      "idea": "A VS monogram built with the same stepped module",
+      "score": 23
+    },
+    {
+      "idea": "Two opposing block fragments lock into an impact aperture",
+      "score": 22
+    },
+    {
+      "idea": "A cube with a shot passage through its centre",
+      "score": 17
+    },
+    {
+      "idea": "A wordmark whose X is replaced by a broken block",
+      "score": 20
+    },
+    {
+      "idea": "A stepped arena gate forming a V",
+      "score": 18
+    },
+    {
+      "idea": "A chevron cut out of a square slab",
+      "score": 16
+    },
+    {
+      "idea": "A short modular S with one moving fragment",
+      "score": 19
+    },
+    {
+      "idea": "A falling voxel implying a forward arrow",
+      "score": 17
+    },
+    {
+      "idea": "A split tile with negative lightning",
+      "score": 15
+    }
+  ]
+}

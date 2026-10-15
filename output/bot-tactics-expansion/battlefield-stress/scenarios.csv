@@ -1,0 +1,7 @@
+map,mode,difficulty,seed,modifiers,conquest,status,simulated_seconds,bot_seconds,moving_seconds,hold_seconds,idle_seconds,movement_intent_seconds,stalled_seconds,spinning_seconds,max_stall_seconds,distance,turn_radians,path_failures,repeated_goal_failures,path_successes,path_deferrals,recoveries,abandoned_goals,kills,blue_score,red_score,mean_update_ms,p95_update_ms,max_update_ms,issues
+battlefield_city,BATTLE_FIELD,ELITE,20263337,32770,false,PASS,93.500,8829.400,8709.184,44.833,75.383,7898.500,0.000,0.000,0.000,42677.025,3177.520,2,0,9869,808,2,0,33,19,14,0.444,0.952,29.204,""
+battlefield_city,BATTLE_FIELD,RECRUIT,20273344,0,true,PASS,93.500,8887.184,7634.784,1201.000,51.400,6994.500,0.000,0.000,0.000,31621.252,2743.040,29,14,7327,587,3,0,17,240,243,0.355,0.624,7.113,""
+battlefield_farmland,BATTLE_FIELD,RECRUIT,20263438,0,false,PASS,93.500,8861.600,8702.667,87.550,71.383,7975.334,0.033,0.000,0.033,36083.969,2467.913,4,1,9638,613,3,0,23,13,10,0.190,0.335,3.768,""
+battlefield_farmland,BATTLE_FIELD,REGULAR,20273445,1801,true,PASS,93.500,8658.950,7035.517,1510.183,113.250,6990.700,0.317,0.000,0.133,74094.195,4471.609,31,9,8102,876,14,0,83,211,182,0.250,0.487,4.425,""
+battlefield_alps,BATTLE_FIELD,REGULAR,20263539,1801,false,PASS,93.500,8672.284,8152.467,418.683,101.133,8132.450,0.683,0.000,0.250,85380.240,5190.281,3,0,9538,951,15,0,81,45,36,0.168,0.254,2.404,""
+battlefield_alps,BATTLE_FIELD,VETERAN,20273546,48,true,PASS,93.500,8885.034,7754.900,1100.067,30.067,7114.467,0.317,0.000,0.317,32100.777,3538.051,0,0,7455,590,6,0,16,240,244,0.112,0.160,1.830,""

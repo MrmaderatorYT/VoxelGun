@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_screen_scrim"
+    android:orientation="vertical"
+    android:paddingStart="24dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="24dp"
+    android:paddingBottom="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/play_back"
+            style="@style/Widget.VoxelGun.Button.Back"
+            android:layout_width="112dp"
+            android:layout_height="48dp"
+            android:gravity="start|center_vertical"
+            android:text="@string/menu_back"
+            app:icon="@drawable/ic_game_back"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="@string/menu_play"
+            android:textAppearance="@style/TextAppearance.VoxelGun.ScreenTitle" />
+
+        <TextView
+            android:layout_width="96dp"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:gravity="end"
+            android:letterSpacing="0.08"
+            android:text="@string/menu_config_label"
+            android:textAllCaps="true"
+            android:textColor="@color/game_text_dim"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="3dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbarStyle="outsideOverlay">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="8dp">
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.VoxelGun.Card"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="7dp"
+                android:layout_weight="1"
+                app:cardBackgroundColor="@color/game_panel">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="12dp">
+
+                    <TextView
+                        style="@style/TextAppearance.Section"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/menu_mode" />
+
+                    <LinearLayout
+                        android:id="@+id/mode_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.VoxelGun.Card"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="7dp"
+                android:layout_weight="1"
+                app:cardBackgroundColor="@color/game_panel">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="12dp">
+
+                    <TextView
+                        style="@style/TextAppearance.Section"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/menu_map" />
+
+                    <LinearLayout
+                        android:id="@+id/map_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <TextView
+                        style="@style/TextAppearance.Section"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/menu_difficulty" />
+
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/difficulty_group"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:selectionRequired="true"
+                        app:singleSelection="true" />
+
+                    <LinearLayout
+                        android:id="@+id/legacy_bot_options"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/text_bots"
+                            style="@style/TextAppearance.Section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/menu_bots" />
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/slider_bots"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:stepSize="1"
+                            android:value="7"
+                            android:valueFrom="1"
+                            android:valueTo="11"
+                            app:haloColor="#3357D9DE"
+                            app:thumbColor="@color/game_accent"
+                            app:trackColorActive="@color/game_accent"
+                            app:trackColorInactive="#475C6977" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/battlefield_options"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            style="@style/TextAppearance.Section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/battlefield_rules" />
+
+                        <TextView
+                            android:id="@+id/text_battlefield_players"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/game_text_muted"
+                            android:textSize="12sp" />
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/slider_battlefield_players"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:stepSize="2"
+                            android:value="100"
+                            android:valueFrom="2"
+                            android:valueTo="100"
+                            app:haloColor="#3357D9DE"
+                            app:thumbColor="@color/game_accent"
+                            app:trackColorActive="@color/game_accent"
+                            app:trackColorInactive="#475C6977" />
+
+                        <TextView
+                            android:id="@+id/text_battlefield_score"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/game_text_muted"
+                            android:textSize="12sp" />
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/slider_battlefield_score"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:stepSize="1"
+                            android:value="250"
+                            android:valueFrom="25"
+                            android:valueTo="1000"
+                            app:haloColor="#3357D9DE"
+                            app:thumbColor="@color/game_accent"
+                            app:trackColorActive="@color/game_accent"
+                            app:trackColorInactive="#475C6977" />
+
+                        <TextView
+                            android:id="@+id/text_battlefield_time"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/game_text_muted"
+                            android:textSize="12sp" />
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/slider_battlefield_time"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:stepSize="1"
+                            android:value="15"
+                            android:valueFrom="5"
+                            android:valueTo="60"
+                            app:haloColor="#3357D9DE"
+                            app:thumbColor="@color/game_accent"
+                            app:trackColorActive="@color/game_accent"
+                            app:trackColorInactive="#475C6977" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_battlefield_conquest"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="44dp"
+                            android:text="@string/battlefield_conquest" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_battlefield_hardcore"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="44dp"
+                            android:text="@string/battlefield_hardcore" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:text="@string/battlefield_hardcore_hint"
+                            android:textColor="@color/game_text_dim"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            style="@style/TextAppearance.Section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/battlefield_class" />
+
+                        <LinearLayout
+                            android:id="@+id/battlefield_class_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:text="@string/battlefield_class_hint"
+                            android:textColor="@color/game_text_dim"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/battlefield_rifle_label"
+                            style="@style/TextAppearance.Section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/battlefield_rifle" />
+
+                        <LinearLayout
+                            android:id="@+id/battlefield_rifle_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical" />
+
+                        <TextView
+                            android:id="@+id/battlefield_sniper_label"
+                            style="@style/TextAppearance.Section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/battlefield_sniper" />
+
+                        <LinearLayout
+                            android:id="@+id/battlefield_sniper_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical" />
+
+                        <TextView
+                            android:id="@+id/battlefield_lmg_label"
+                            style="@style/TextAppearance.Section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/battlefield_machine_gun" />
+
+                        <LinearLayout
+                            android:id="@+id/battlefield_lmg_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </ScrollView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/button_start"
+        style="@style/Widget.VoxelGun.Button.MenuPrimary"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="6dp"
+        android:text="@string/menu_start_match"
+        app:icon="@drawable/ic_game_play"
+        app:iconGravity="textStart" />
+</LinearLayout>

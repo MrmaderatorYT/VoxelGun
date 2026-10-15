@@ -1,0 +1,88 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+def releaseKeystorePath = System.getenv('VOXELGUN_KEYSTORE')
+
+android {
+    namespace 'com.ccs.voxelgun'
+    compileSdk {
+        version = release(36) {
+            minorApiLevel = 1
+        }
+    }
+    ndkVersion '28.2.13676358'
+
+    signingConfigs {
+        release {
+            if (releaseKeystorePath != null) {
+                storeFile file(releaseKeystorePath)
+                storePassword System.getenv('VOXELGUN_STORE_PASSWORD')
+                keyAlias System.getenv('VOXELGUN_KEY_ALIAS')
+                keyPassword System.getenv('VOXELGUN_KEY_PASSWORD')
+            }
+        }
+    }
+
+    defaultConfig {
+        applicationId "com.ccs.voxelgun"
+        minSdk 24
+        targetSdk 36
+        versionCode 2
+        versionName "2.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17 -O3 -ffast-math -fno-exceptions -fno-rtti -funroll-loops"
+                arguments "-DANDROID_STL=c++_static"
+            }
+        }
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'src/main/keepRules/rules.keep'
+            if (releaseKeystorePath != null) signingConfig signingConfigs.release
+        }
+        debug {
+            // Shader/native iteration stays fast; the RT pipeline is validated in debug too.
+            jniDebuggable true
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.22.1'
+        }
+    }
+    packaging {
+        jniLibs { keepDebugSymbols += ['**/libvoxel_native.so'] }
+    }
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+    implementation libs.core
+    implementation libs.activity
+    implementation libs.appcompat
+    implementation libs.constraintlayout
+    implementation libs.material
+    testImplementation libs.junit
+    // The android.jar stub throws for every org.json call, so unit tests link the real thing.
+    testImplementation 'org.json:json:20231013'
+    androidTestImplementation libs.espresso.core
+    androidTestImplementation libs.ext.junit
+}

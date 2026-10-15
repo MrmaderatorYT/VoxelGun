@@ -1,0 +1,2340 @@
+--- a/app/src/main/java/com/ccs/voxelgun/game/BotBhopController.java
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotBhopController.java
+@@ -24,9 +24,19 @@
+ 
+     public void update(Combatant c, VoxelWorld world, float wishX, float wishZ,
+                        float referenceSpeed, boolean travel, float dt) {
++        update(c, world, wishX, wishZ, referenceSpeed, travel, 1f, dt);
++    }
++
++    public void update(Combatant c, VoxelWorld world, float wishX, float wishZ,
++                       float referenceSpeed, boolean travel, float gravityScale, float dt) {
+         float wishSpeed = (float) Math.sqrt(wishX * wishX + wishZ * wishZ);
++        float speed = Math.max(wishSpeed, (float) Math.hypot(c.velocity.x, c.velocity.z));
++        // Predict the next legitimate timed-hop reward before choosing to launch. A first jump
++        // may receive no boost, but this conservative bound also covers a fresh landing combo.
++        float takeoffSpeed = Math.min(referenceSpeed * ArenaMovement.BHOP_MAX_SPEED_FACTOR,
++                speed * 1.14f + referenceSpeed * .10f);
+         boolean wantsHop = travel && !c.aiming && wishSpeed > referenceSpeed * .35f
+-                && (!c.grounded || safety.canHop(c, world, wishX, wishZ, dt));
++                && (!c.grounded || safety.canHop(c, world, wishX, wishZ, takeoffSpeed, gravityScale, dt));
+         // A bot spawned/falling in air may prepare crouch, but never jump there. Clearance is
+         // checked at the actual landing before any rewarded takeoff, not at raised feet.
+         restartWait = Math.max(0f, restartWait - dt);
+--- a/app/src/main/java/com/ccs/voxelgun/game/BotBrain.java
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotBrain.java
+@@ -41,6 +41,15 @@
+     private final Match match;
+     private final Random random;
+     private final PathFinder.Path path = new PathFinder.Path(2048);
++    private final BotRouteMemory routeMemory = new BotRouteMemory();
++    private final BotPositionPlanner positions;
++    private final BotCoverCycle coverCycle = new BotCoverCycle();
++    private final BotHearing hearing;
++    private float positionCooldown, positionTime, unproductiveTime;
++    private int combatPosition = -1, rejectedPosition = -1, coverSide, coverRevision = -1;
++    private float coverCheckTime;
++    private int detourNode = -1, detourForGoal = -1;
++    private float detourTime;
+     private final Vec3 lastKnown = new Vec3();
+     private final Vec3 desired = new Vec3();
+     /** Reused by the infrequent tactical spot search to avoid transition-time garbage. */
+@@ -76,13 +85,13 @@
+     private float burstTime, burstPause;
+     private float strafeDirection = 1f;
+     private float strafeTimer;
+-    private float jumpCooldown;
++    private float jumpCooldown, hopSuppressionTime;
+     private float grenadeCooldown = 8f;
+     private float stuckTimer;
+     private float lastX;
+     private float lastZ;
+     private float recoveryTime, recoveryX, recoveryZ, recoveryProbeTime;
+-    private float hearingCooldown, heardLookTime, investigationTime;
++    private float heardLookTime, investigationTime;
+     private final Vec3 heardPosition = new Vec3();
+     private boolean recoveringPrimary;
+     private int goalNode = -1;
+@@ -97,7 +106,7 @@
+     private float combatDecisionTimer;
+     /** Prevents range-based weapon choices from flickering at their distance thresholds. */
+     private float weaponDecisionTimer;
+-    private boolean holdPosition, combatCrouch;
++    private boolean holdPosition, combatCrouch, intentionalCombatHold;
+     /** Time spent checking the last known position before returning to patrol. */
+     private float searchTimer;
+     private final PathFinder.Path tacticalPath = new PathFinder.Path(2048);
+@@ -106,7 +115,10 @@
+     private BotEvasionController evasion;
+     private WeaponType rolePrimary;
+     private final BotShotDiscipline shotDiscipline = new BotShotDiscipline();
++    private final BotMovementSafety jumpSafety = new BotMovementSafety();
+     private final BotSwimmingController swimming = new BotSwimmingController();
++    private final BotLocalRecovery localRecovery = new BotLocalRecovery();
++    private float localRecoveryCooldown;
+     private boolean squadWithdrawing;
+     private float sectorWatchTime;
+ 
+@@ -115,6 +127,9 @@
+         this.difficulty = difficulty;
+         this.match = match;
+         this.random = new Random(seed);
++        this.hearing = new BotHearing(seed);
++        this.positions = new BotPositionPlanner(match.world(), match.nav(), match.pathFinder(),
++                match.tacticalBudget());
+         this.style = BotCombatStyle.forCombatant(self);
+         this.rolePrimary = self.kit[WeaponSlot.PRIMARY.ordinal()];
+         this.evasion = new BotEvasionController(difficulty, style);
+@@ -146,6 +161,7 @@
+         style = next;
+         evasion = new BotEvasionController(difficulty, style);
+         bhop.reset(); shotDiscipline.reset();
++        coverCycle.reset(); combatPosition = rejectedPosition = -1; positionCooldown = 0f;
+         holdPosition = combatCrouch = false;
+         combatDecisionTimer = weaponDecisionTimer = pushTime = 0f;
+         goalNode = -1; path.clear(); repathTimer = 0f;
+@@ -188,12 +204,15 @@
+ 
+     public void onRespawn() {
+         refreshCombatRole();
+-        bhop.reset();
+-        swimming.reset();
++        bhop.reset(); jumpSafety.reset();
++        swimming.reset(); localRecovery.reset(); localRecoveryCooldown = 0f;
+         evasion.reset(); shotDiscipline.reset();
+         squadWithdrawing = false;
+         state = State.PATROL;
+         target = null;
++        routeMemory.reset(); detourNode = detourForGoal = -1; detourTime = 0f;
++        coverCycle.reset(); hearing.reset(); combatPosition = rejectedPosition = -1;
++        positionCooldown = positionTime = unproductiveTime = 0f;
+         path.clear();
+         goalNode = -1;
+         failedGoalNode = previousWaypoint = validatedWaypoint = -1;
+@@ -207,7 +226,7 @@
+         combatDecisionTimer = weaponDecisionTimer = searchTimer = 0f;
+         holdPosition = combatCrouch = false;
+         self.crouching = false;
+-        stuckTimer = recoveryTime = hearingCooldown = heardLookTime = investigationTime = 0f;
++        stuckTimer = recoveryTime = heardLookTime = investigationTime = hopSuppressionTime = 0f;
+         recoveringPrimary = false;
+         lastX = self.position.x;
+         lastZ = self.position.z;
+@@ -223,6 +242,8 @@
+     }
+ 
+     public void update(float dt) {
++        desired.set(0f, 0f, 0f);
++        intentionalCombatHold = false;
+         refreshCombatRole();
+         int revision = match.world().revision();
+         if (revision != terrainRevision) {
+@@ -233,7 +254,7 @@
+         }
+         if (!self.alive || !match.combatActive()) {
+             bhop.reset();
+-            swimming.reset();
++            swimming.reset(); localRecovery.reset();
+             evasion.reset(); shotDiscipline.reset();
+             self.velocity.x = 0f;
+             self.velocity.z = 0f;
+@@ -243,9 +264,17 @@
+ 
+         boolean wasSwimming = swimming.active();
+         if (swimming.update(self, match.world(), dt)) {
++            localRecovery.reset();
++            if (!wasSwimming) {
++                // A walk that ended in water should not immediately send us over the same edge.
++                routeMemory.avoidNode(path.currentNode());
++                if (goalNode >= 0) routeMemory.failedGoal(goalNode);
++                path.clear(); coverCycle.reset(); combatPosition = -1;
++            }
+             // Reaching air/shore takes precedence over combat, evasion and timed slide jumps.
+             bhop.reset(); evasion.reset(); shotDiscipline.reset();
+             self.firing = false;
++            desired.set(self.velocity.x, 0f, self.velocity.z);
+             lookAlongMovement(dt);
+             return;
+         }
+@@ -263,18 +292,31 @@
+         }
+ 
+         desired.set(0f, 0f, 0f);
++        routeMemory.update(dt);
++        hearing.update(dt);
++        positionCooldown -= dt; positionTime -= dt;
++        if (coverCycle.active()) coverCycle.update(self, match.nav(), dt);
++        if (coverCycle.needsRelocation()) {
++            rejectedPosition = coverCycle.coverNode();
++            routeMemory.avoidNode(rejectedPosition);
++            coverCycle.reset(); coverSide++;
++            goalNode = -1; path.clear(); coverTime = .5f;
++            tacticalCooldown = 1f + (1f - difficulty.tactics());
++        }
++        detourTime -= dt;
+         shotDiscipline.update(self, dt);
+         repathTimer -= dt;
+         goalCooldown -= dt;
+         jumpCooldown -= dt;
++        hopSuppressionTime -= dt;
+         grenadeCooldown -= dt;
+         strafeTimer -= dt;
+         navigationProbeTimer -= dt;
+         coverTime -= dt;
+         tacticalCooldown -= dt;
++        localRecoveryCooldown -= dt;
+         pushTime -= dt;
+         weaponDecisionTimer -= dt;
+-        hearingCooldown -= dt;
+         heardLookTime -= dt;
+         if (state == State.HUNT) {
+             investigationTime -= dt;
+@@ -284,10 +326,33 @@
+                 goalNode = -1;
+                 path.clear();
+                 goalCooldown = repathTimer = 0f;
+-                hearingCooldown = Math.max(hearingCooldown, 2f);
+-            }
+-        }
+-
++                hearing.suppressFor(2f);
++            }
++        }
++
++        if (match.objectives() != null && match.objectives().shouldInteract(self)) {
++            bhop.reset(); evasion.reset(); shotDiscipline.reset(); coverCycle.reset(); localRecovery.reset();
++            self.velocity.x = self.velocity.z = 0f;
++            self.firing = self.sprinting = self.crouching = self.aiming = false;
++            state = State.PATROL; target = null;
++            recoveryTime = 0f;
++            return;
++        }
++
++        if (match.objectives() != null && match.objectives().carrierId() == self.id
++                && (coverCycle.active() || state == State.REGROUP)) {
++            coverCycle.reset(); coverTime = 0f; state = State.PATROL;
++            goalNode = -1; path.clear(); repathTimer = 0f;
++        }
++        if (localRecovery.active()) {
++            bhop.reset(); evasion.reset(); shotDiscipline.reset();
++            self.firing = self.aiming = self.sprinting = self.crouching = false;
++            if (localRecovery.update(self, match.world(), dt)) {
++                desired.set(self.velocity.x, 0f, self.velocity.z);
++                lookAlongMovement(dt); manageWeapon(); return;
++            }
++            path.clear(); goalNode = -1; repathTimer = 0f;
++        }
+         perceptionTimer -= dt;
+         perceptionElapsed += dt;
+         if (perceptionTimer <= 0f) {
+@@ -306,9 +371,11 @@
+         boolean withdraw = regroupingSquad && (target == null
+                 || Vec3.horizontalDistance(self.position, target.position) > 10f);
+         if (withdraw) {
++            coverCycle.reset(); combatPosition = -1;
+             if (!squadWithdrawing) { goalNode = -1; path.clear(); repathTimer = 0f; }
+             state = State.PATROL;
+         }
++        if (!withdraw && coverCycle.active()) state = State.REGROUP;
+         squadWithdrawing = withdraw;
+         evasion.observe(self, state == State.ENGAGE || state == State.REGROUP ? target : null, dt);
+         switch (state) {
+@@ -351,13 +418,18 @@
+         if (match.objectives() != null && match.objectives().carrierId() == self.id) {
+             referenceSpeed *= .85f;
+         }
+-        boolean bhopEnabled = match.modifier(MatchModifier.BUNNY_HOP) && !self.zombie;
+-        if (recoveringThisStep) evasion.reset();
+-        else if (evasion.steer(self, match.world(), desired, referenceSpeed, bhopEnabled, dt)) {
++        boolean bhopEnabled = match.modifier(MatchModifier.BUNNY_HOP) && !self.zombie
++                && hopSuppressionTime <= 0f;
++        boolean settledCover = coverCycle.settled();
++        if (recoveringThisStep || settledCover) evasion.reset();
++        else if (evasion.steer(self, match.world(), desired, referenceSpeed, bhopEnabled, dt)
++                && hopSuppressionTime <= 0f && jumpSafety.canHop(self, match.world(),
++                desired.x, desired.z, referenceSpeed,
++                match.modifier(MatchModifier.LOW_GRAVITY) ? .4f : 1f, dt)) {
+             match.jump(self, 7.2f);
+             jumpCooldown = .9f;
+         }
+-        if (bhopEnabled && !recoveryBlocked) {
++        if (bhopEnabled && !recoveryBlocked && !settledCover) {
+             boolean travel = (state == State.PATROL || state == State.HUNT) && goalNode >= 0;
+             if (travel) {
+                 float gx = match.nav().cellX(goalNode) + .5f - self.position.x;
+@@ -366,11 +438,12 @@
+             }
+             bhop.update(self, match.world(), desired.x, desired.z, referenceSpeed,
+                     !recoveringThisStep && style != BotCombatStyle.SNIPER
+-                            && (travel || evasion.active()), dt);
++                            && (travel || evasion.active()),
++                    match.modifier(MatchModifier.LOW_GRAVITY) ? .4f : 1f, dt);
+         } else {
+             bhop.reset();
+         }
+-        if (!recoveringThisStep) BotCrowdAvoidance.separate(self, match.combatants(), match.world(), dt);
++        if (!recoveringThisStep && !settledCover) BotCrowdAvoidance.separate(self, match.combatants(), match.world(), dt);
+         manageWeapon();
+         detectStuck(dt);
+     }
+@@ -428,6 +501,7 @@
+             quietPatrolSeconds = 0f;
+             if (best != target) {
+                 target = best;
++                combatPosition = -1; unproductiveTime = 0f;
+                 trackedTime = 0f;
+                 reactionTimer = difficulty.reactionSeconds() * style.reactionFactor()
+                         * (0.7f + random.nextFloat() * 0.6f);
+@@ -444,12 +518,12 @@
+             float memoryLead = 0.08f + difficulty.tactics() * 0.18f;
+             lastKnown.set(best.position.x + best.velocity.x * memoryLead, best.position.y,
+                     best.position.z + best.velocity.z * memoryLead);
+-            if (coverTime > 0f) state = State.REGROUP;
++            if (coverTime > 0f || coverCycle.active()) state = State.REGROUP;
+             else if (shouldFallBack() && tacticalCooldown <= 0f) {
+                 state = State.REGROUP;
+                 coverTime = 1.6f;
+                 tacticalCooldown = 5f;
+-                goalNode = tacticalNode(true);
++                if (!beginCover()) goalNode = tacticalNode(true);
+                 path.clear(); repathTimer = 0f;
+             } else state = State.ENGAGE;
+             return;
+@@ -462,7 +536,7 @@
+                 state = State.PATROL;
+             } else if (state == State.ENGAGE) {
+                 // Losing a firing angle does not send a marksman chasing through the front line.
+-                state = style == BotCombatStyle.SNIPER || tacticalAssignment()
++                state = style == BotCombatStyle.SNIPER || tacticalAssignment() || match.objectives() != null
+                         ? State.PATROL : State.HUNT;
+                 goalNode = state == State.HUNT
+                         ? match.nav().nearestNode(lastKnown.x, lastKnown.y, lastKnown.z) : -1;
+@@ -487,7 +561,8 @@
+ 
+     /** Hurt bots with enough tactical sense retreat instead of trading. */
+     private boolean shouldFallBack() {
+-        if (self.zombie) {
++        if (self.zombie || match.objectives() != null
++                && (match.objectives().carrierId() == self.id || match.objectives().isInteractor(self))) {
+             return false;
+         }
+         Weapon weapon = self.weapon();
+@@ -504,22 +579,22 @@
+ 
+     /** Gunfire pulls bots toward the noise even when they cannot see the shooter. */
+     public void hearGunshot(float x, float y, float z, float loudness) {
+-        hearNoise(x, y, z, 45f * loudness);
++        hearNoise(x, y, z, 45f * loudness, false);
+     }
+ 
+     void hearFootstep(float x, float y, float z, float range) {
+-        hearNoise(x, y, z, range * (.65f + difficulty.tactics() * .35f));
+-    }
+-
+-    private void hearNoise(float x, float y, float z, float range) {
++        hearNoise(x, y, z, range * (.65f + difficulty.tactics() * .35f), true);
++    }
++
++    private void hearNoise(float x, float y, float z, float range, boolean footstep) {
+         if (!self.alive || match.mode().passiveBots() || state == State.ENGAGE
+-                || coverTime > 0f || hearingCooldown > 0f || range <= 0f) return;
++                || coverTime > 0f || coverCycle.active() || range <= 0f) return;
++        if (!hearing.accept(self, match.world(), x, y, z, range, footstep, difficulty)) return;
++        x = hearing.x(); y = hearing.y(); z = hearing.z();
+         float dx = x - self.position.x, dy = y - self.position.y, dz = z - self.position.z;
+         float distanceSquared = dx * dx + dy * dy + dz * dz;
+-        if (distanceSquared > range * range) return;
+-        hearingCooldown = .8f + (1f - difficulty.tactics()) * .6f;
+         heardPosition.set(x, y, z);
+-        heardLookTime = 1.2f;
++        heardLookTime = hearing.lifetimeSeconds();
+         // Sound is a direction cue, never sight or permission to abandon the objective.
+         if (style == BotCombatStyle.SNIPER || tacticalAssignment() || match.objectives() != null) return;
+         float changeX = x - lastKnown.x, changeZ = z - lastKnown.z;
+@@ -584,7 +659,7 @@
+             return;
+         }
+         quietPatrolSeconds += dt;
+-        if (match.mode().teamBased() && quietPatrolSeconds >= 12f - difficulty.tactics() * 6f) {
++        if (quietPatrolSeconds >= 12f - difficulty.tactics() * 6f) {
+             // Public arena sectors, not hidden enemy positions. Pure local wandering can keep
+             // both teams behind new cover forever, especially at low difficulty.
+             float centerX = match.nav().width() * .5f;
+@@ -660,6 +735,7 @@
+     }
+ 
+     private void regroup(float dt) {
++        if (coverCycle.active()) { useCover(dt); return; }
+         self.aiming = false;
+         self.crouching = false;
+         if (goalNode < 0 || path.finished() && goalNode != failedGoalNode) {
+@@ -707,6 +783,13 @@
+         boolean marksman = style == BotCombatStyle.SNIPER && !melee;
+         if (marksman) preferred = 38f;
+         boolean pushing = pushTime > 0f && style == BotCombatStyle.RUSHER;
++        if (followCombatObjective(dt, distance) || useFiringPosition(dt, type, distance)) {
++            self.sprinting = false;
++            self.aiming = type.scoped() && self.grounded && distance > 12f;
++            aimAt(target, dt, distance);
++            shootAt(dt, distance, melee, type);
++            return;
++        }
+ 
+         // Hold a tactical choice long enough to read as intent: sometimes plant, settle and
+         // crouch; otherwise strafe or close distance. Higher skill makes these pauses useful,
+@@ -747,7 +830,7 @@
+             } else {
+                 // A deliberate settled firing phase, compatible with sniper shot discipline.
+                 self.velocity.x = self.velocity.z = 0f;
+-                holdPosition = true;
++                holdPosition = intentionalCombatHold = true;
+                 self.crouching = self.grounded && distance > 18f;
+             }
+         } else if (!melee && (tactic == SquadCoordinator.MemberTactic.FLANK
+@@ -760,6 +843,7 @@
+                 && (match.objectives() != null && match.objectives().shouldHold(self)
+                 || tacticalAssignment() && assignmentShouldHold())) {
+             self.velocity.x = self.velocity.z = 0f;
++            intentionalCombatHold = true;
+         } else if (melee) {
+             moveToward(target.position.x, target.position.z, dt, 1.2f);
+         } else if (distance > preferred * approachFactorFor(type) || pushing) {
+@@ -769,6 +853,7 @@
+             moveToward(self.position.x * 2f - target.position.x,
+                     self.position.z * 2f - target.position.z, dt, retreatSpeedFor(type));
+         } else if (holdPosition) {
++            intentionalCombatHold = true;
+             self.velocity.x *= Math.max(0f, 1f - dt * 10f);
+             self.velocity.z *= Math.max(0f, 1f - dt * 10f);
+         } else {
+@@ -781,6 +866,171 @@
+         shootAt(dt, distance, melee, type);
+ 
+         maybeThrowGrenade(distance);
++    }
++
++    /** Public objectives retain priority over range preferences, including for a sniper carrier. */
++    private boolean followCombatObjective(float dt, float distance) {
++        Objectives objectives = match.objectives();
++        if (objectives == null) return false;
++        ObjectiveBotTactics.Role role = objectives.roleFor(self);
++        boolean carry = role == ObjectiveBotTactics.Role.CARRY;
++        if (!carry && distance < 8f) return false;
++        if (!carry && role != ObjectiveBotTactics.Role.ESCORT
++                && role != ObjectiveBotTactics.Role.INTERCEPT
++                && role != ObjectiveBotTactics.Role.INTERACT) return false;
++        combatPosition = -1; coverCycle.reset(); self.crouching = false;
++        int next = objectives.goalFor(self);
++        if (next != goalNode) { goalNode = next; path.clear(); repathTimer = 0f; }
++        if (objectives.shouldHold(self)) self.velocity.x = self.velocity.z = 0f;
++        else followPath(dt, carry ? 1f : .9f);
++        return true;
++    }
++
++    private int positionAnchor() {
++        if (match.objectives() != null) return match.objectives().goalFor(self);
++        if (match.conquest() != null) return match.conquest().goalFor(self);
++        if (match.battlefront() != null) return match.battlefront().destinationFor(self);
++        return -1;
++    }
++
++    private boolean beginCover() {
++        if (self.zombie || self.weaponType().melee() || match.objectives() != null
++                && (match.objectives().carrierId() == self.id || match.objectives().isInteractor(self))) {
++            return false;
++        }
++        if (!positions.coverPair(self, lastKnown.x, lastKnown.y, lastKnown.z,
++                positionAnchor(), match.objectives() == null ? 8f : 4f,
++                routeMemory, rejectedPosition, coverSide)) return false;
++        coverCycle.start(positions.coverNode(), positions.peekNode(), self, difficulty);
++        coverRevision = match.world().revision(); coverCheckTime = .6f;
++        combatPosition = -1; goalNode = coverCycle.destination();
++        return true;
++    }
++
++    private void useCover(float dt) {
++        self.firing = self.sprinting = self.aiming = self.crouching = false;
++        int next = coverCycle.destination();
++        coverCheckTime -= dt;
++        if ((coverRevision != match.world().revision() || coverCheckTime <= 0f)
++                && match.tacticalBudget().take()) {
++            coverRevision = match.world().revision(); coverCheckTime = .6f;
++            int cover = coverCycle.coverNode();
++            if (match.nav().valid(cover) && match.world().lineOfSight(
++                    match.nav().cellX(cover) + .5f,
++                    match.nav().nodeY(cover) + Combatant.EYE_HEIGHT,
++                    match.nav().cellZ(cover) + .5f,
++                    lastKnown.x, lastKnown.y + Combatant.EYE_HEIGHT * .85f, lastKnown.z)) {
++                rejectedPosition = cover; routeMemory.avoidNode(cover);
++                coverCycle.reset(); goalNode = -1; path.clear(); coverTime = 0f;
++                self.velocity.x = self.velocity.z = 0f; state = State.PATROL;
++                return;
++            }
++        }
++        if (!positions.usable(next) || !positions.usable(coverCycle.coverNode())) {
++            routeMemory.avoidNode(next); coverCycle.reset();
++            goalNode = -1; path.clear(); coverTime = 0f; state = State.PATROL;
++            return;
++        }
++        if (goalNode != next) { goalNode = next; path.clear(); repathTimer = 0f; }
++        if (coverCycle.settled()) {
++            self.velocity.x = self.velocity.z = 0f;
++            self.crouching = coverCycle.hidden() && self.grounded;
++        } else {
++            followPath(dt, .78f);
++            // Generic waypoints have a larger arrival radius than the settle phase. Complete
++            // the final half-step so an otherwise finished path cannot strand a cover cycle.
++            float dx = match.nav().cellX(next) + .5f - self.position.x;
++            float dz = match.nav().cellZ(next) + .5f - self.position.z;
++            if (dx * dx + dz * dz < 1.21f
++                    && Math.abs(match.nav().nodeY(next) - self.position.y) < 1f) {
++                steer(dx, dz, dt, .5f);
++            }
++        }
++        if (coverCycle.hidden()) {
++            Weapon weapon = self.weapon();
++            if (weapon != null && weapon.ammo() < weapon.type().magazine() * .65f) {
++                match.startReload(self);
++            }
++        }
++        if (coverCycle.canFire() && target != null && target.alive && lostTimer == 0f
++                && match.world().lineOfSight(self.eyeX(), self.eyeY(), self.eyeZ(),
++                target.eyeX(), target.eyeY() - .2f, target.eyeZ())) {
++            float distance = Vec3.distance(self.position, target.position);
++            chooseCombatWeapon(distance);
++            self.aiming = self.weaponType().scoped() && self.grounded && distance > 12f;
++            aimAt(target, dt, distance);
++            shootAt(dt, distance, false, self.weaponType());
++        } else if (target != null) {
++            // Face only remembered information while behind cover; never track through a wall.
++            float yaw = (float) Math.atan2(lastKnown.x - self.position.x,
++                    self.position.z - lastKnown.z);
++            self.yaw = MathUtil.wrapAngle(self.yaw + MathUtil.wrapAngle(yaw - self.yaw) * Math.min(1f, dt * 4f));
++        } else lookAlongMovement(dt);
++    }
++
++    private boolean useFiringPosition(float dt, WeaponType type, float distance) {
++        if (self.firing) unproductiveTime = 0f; else unproductiveTime += dt;
++        if (type.melee() || self.zombie || evasion.active() || lostTimer > 0f
++                || style == BotCombatStyle.SNIPER && tacticalAssignment()
++                || match.objectives() != null && match.objectives().shouldHold(self)
++                || tacticalAssignment() && !assignmentShouldHold()) {
++            combatPosition = -1;
++            return false;
++        }
++        if (combatPosition >= 0 && (positionTime <= 0f || !positions.usable(combatPosition)
++                || routeMemory.cost(combatPosition) > 0f || routeMemory.failures(combatPosition) > 1
++                || distance < Math.max(5f, minimumSafeRangeFor(type))
++                || self.lastDamageTime < .3f && self.health < 60f)) {
++            rejectedPosition = combatPosition; combatPosition = -1;
++            goalNode = -1; path.clear(); repathTimer = 0f;
++        }
++        float preferred = preferredRangeFor(type);
++        boolean badRange = distance > preferred * 1.4f || distance < preferred * .65f;
++        if (combatPosition < 0 && positionCooldown <= 0f && trackedTime > .8f
++                && (badRange || unproductiveTime > 3f)) {
++            positionCooldown = 3f + (1f - difficulty.tactics()) * 2f;
++            combatPosition = positions.firingPosition(self, type, lastKnown.x, lastKnown.y,
++                    lastKnown.z, positionAnchor(), match.objectives() == null ? 8f : 4f,
++                    routeMemory, rejectedPosition);
++            if (combatPosition >= 0) {
++                goalNode = combatPosition; path.clear(); repathTimer = 0f;
++                positionTime = 3f + difficulty.tactics() * 2f; unproductiveTime = 0f;
++            }
++        }
++        if (combatPosition < 0) return false;
++        float dx = match.nav().cellX(combatPosition) + .5f - self.position.x;
++        float dz = match.nav().cellZ(combatPosition) + .5f - self.position.z;
++        if (dx * dx + dz * dz < .15f * .15f
++                && Math.abs(match.nav().nodeY(combatPosition) - self.position.y) < 1f) {
++            self.velocity.x = self.velocity.z = 0f;
++            intentionalCombatHold = true;
++            self.crouching = self.grounded && distance > 14f;
++        } else {
++            self.crouching = false;
++            if (goalNode != combatPosition) { goalNode = combatPosition; repathTimer = 0f; }
++            followPath(dt, style == BotCombatStyle.SNIPER ? .7f : .9f);
++            if (dx * dx + dz * dz < 1.21f
++                    && Math.abs(match.nav().nodeY(combatPosition) - self.position.y) < 1f) {
++                steer(dx, dz, dt, .5f);
++            }
++        }
++        return true;
++    }
++
++    boolean diagnosticWantsMovement() {
++        return desired.x * desired.x + desired.z * desired.z >= .25f;
++    }
++
++    int diagnosticHoldReason() {
++        if (diagnosticWantsMovement()) return BotDiagnostics.NONE;
++        if (match.mode().passiveBots()) return BotDiagnostics.RANGE;
++        if (coverCycle.settled()) return BotDiagnostics.COVER;
++        if (match.objectives() != null && match.objectives().shouldHold(self)
++                || tacticalAssignment() && assignmentShouldHold()) return BotDiagnostics.OBJECTIVE;
++        if (intentionalCombatHold) return BotDiagnostics.COMBAT;
++        if (state == State.HUNT && Vec3.horizontalDistance(self.position, lastKnown) < 2.5f)
++            return BotDiagnostics.INVESTIGATION;
++        return BotDiagnostics.NONE;
+     }
+ 
+     private boolean tacticalAssignment() {
+@@ -1378,27 +1628,49 @@
+             self.velocity.z = 0f;
+             return;
+         }
++        if (detourNode >= 0 && (detourForGoal != goalNode || detourTime <= 0f)) {
++            detourNode = -1; path.clear(); repathTimer = 0f;
++        }
+         if (repathTimer <= 0f) {
+             if (match.pathFinder().canSearch()) {
+                 repathTimer = REPATH_INTERVAL + random.nextFloat() * 0.4f;
+                 int startNode = match.nav().nearestNode(self.position.x, self.position.y, self.position.z);
+-                if (match.pathFinder().find(startNode, goalNode, path)) {
++                int destination = detourNode >= 0 ? detourNode : goalNode;
++                if (match.pathFinder().find(startNode, destination, path, routeMemory)) {
++                    if (match.botDiagnostics() != null) match.botDiagnostics().pathSucceeded(self.id);
+                     failedGoalNode = -1;
+                     previousWaypoint = path.currentNode();
+                     validatedWaypoint = -1;
+                 } else {
++                    if (match.botDiagnostics() != null) match.botDiagnostics().pathFailed(self.id, destination);
+                     failedGoalNode = goalNode;
++                    routeMemory.failedGoal(destination);
++                    if (detourNode >= 0) { routeMemory.avoidNode(detourNode); detourNode = -1; }
++                    if (routeMemory.failures(goalNode) >= 2) {
++                        detourNode = alternateApproach(goalNode);
++                        detourForGoal = goalNode; detourTime = 5f;
++                    }
+                 }
+             } else if (path.finished()) {
++                if (match.botDiagnostics() != null) match.botDiagnostics().pathDeferred(self.id);
+                 // Budget deferral is not an unreachable goal: retry on the next simulation step.
+                 self.velocity.x = self.velocity.z = 0f;
+                 return;
+             }
+         }
+         if (path.finished()) {
++            if (detourNode >= 0 && goalNode != failedGoalNode) {
++                detourNode = -1; repathTimer = 0f;
++                self.velocity.x = self.velocity.z = 0f;
++                return;
++            }
+             // Do not let Conquest's unchanged cached destination reset a genuine failure's
+             // cooldown on the next tick. A new order/target still resets it at the caller.
+-            if (goalNode != failedGoalNode) goalNode = -1;
++            if (goalNode != failedGoalNode) {
++                routeMemory.reachedGoal(goalNode);
++                if (match.botDiagnostics() != null) match.botDiagnostics().goalReached(self.id);
++                goalNode = -1;
++            }
+             self.velocity.x = 0f;
+             self.velocity.z = 0f;
+             return;
+@@ -1408,6 +1680,9 @@
+         for (int skipped = 0; skipped < 6 && !path.finished(); skipped++) {
+             int node = path.currentNode();
+             if (!routeEdgeClear(node)) {
++                if (match.botDiagnostics() != null) match.botDiagnostics().pathFailed(self.id, goalNode);
++                routeMemory.avoidNode(node);
++                routeMemory.failedGoal(goalNode);
+                 path.clear();
+                 failedGoalNode = goalNode;
+                 previousWaypoint = validatedWaypoint = -1;
+@@ -1426,6 +1701,34 @@
+             path.advance();
+             if (!match.modifier(MatchModifier.BUNNY_HOP)) return;
+         }
++    }
++
++    /** A nearby approach point changes the route while retaining the public strategic goal. */
++    private int alternateApproach(int destination) {
++        NavGrid nav = match.nav();
++        if (!nav.valid(destination)) return -1;
++        float dx = nav.cellX(destination) + .5f - self.position.x;
++        float dz = nav.cellZ(destination) + .5f - self.position.z;
++        float length = (float) Math.hypot(dx, dz);
++        if (length < 2f) return -1;
++        dx /= length; dz /= length;
++        int best = -1;
++        float bestScore = -Float.MAX_VALUE;
++        for (int i = 0; i < 6; i++) {
++            float side = (i % 2 == 0 ? 1f : -1f) * (4f + i / 2 * 4f);
++            float forward = i < 4 ? Math.min(6f, length * .4f) : -3f;
++            int node = nav.nearestNode(self.position.x + dx * forward - dz * side,
++                    self.position.y, self.position.z + dz * forward + dx * side);
++            if (!nav.valid(node) || node == destination || routeMemory.failures(node) > 0
++                    || routeMemory.cost(node) > 0f) continue;
++            float nx = nav.cellX(node) + .5f - self.position.x;
++            float nz = nav.cellZ(node) + .5f - self.position.z;
++            float travel = nx * nx + nz * nz;
++            if (travel < 9f || travel > 256f) continue;
++            float score = -travel + ((self.id & 1) == i % 2 ? 2f : 0f);
++            if (score > bestScore) { best = node; bestScore = score; }
++        }
++        return best;
+     }
+ 
+     /** Check only the next edge, once per waypoint/revision, never scan/rebuild the full route. */
+@@ -1464,7 +1767,10 @@
+                     self.position.y + 0.9f, self.position.z, x, self.position.y + 0.9f, z);
+             navigationProbeTimer = NAVIGATION_PROBE_INTERVAL;
+         }
+-        if (!directPathClear) {
++        float inverse = 1f / (float) Math.sqrt(dx * dx + dz * dz);
++        boolean safeDirect = !self.grounded || BotMovementSafety.canDodge(self, match.world(),
++                dx * inverse, dz * inverse, false);
++        if (!directPathClear || !safeDirect || recoveryTime > 0f || detourNode >= 0) {
+             if (repathTimer <= 0f || goalNode < 0) {
+                 goalNode = match.nav().nearestNode(x, self.position.y, z);
+                 repathTimer = 0f;
+@@ -1481,7 +1787,17 @@
+             strafeDirection = random.nextBoolean() ? 1f : -1f;
+         }
+         float side = self.yaw + (float) Math.PI * 0.5f * strafeDirection;
+-        steer((float) Math.sin(side), -(float) Math.cos(side), dt, speedScale);
++        float dx = (float) Math.sin(side), dz = -(float) Math.cos(side);
++        if (self.grounded && !BotMovementSafety.canDodge(self, match.world(), dx, dz, false)) {
++            if (BotMovementSafety.canDodge(self, match.world(), -dx, -dz, false)) {
++                strafeDirection = -strafeDirection; dx = -dx; dz = -dz;
++            } else {
++                self.velocity.x = self.velocity.z = 0f;
++                intentionalCombatHold = true;
++                return;
++            }
++        }
++        steer(dx, dz, dt, speedScale);
+     }
+ 
+     private void steer(float dx, float dz, float dt, float speedScale) {
+@@ -1498,7 +1814,7 @@
+             speed *= 1.18f;
+         }
+         desired.set(dx * speed, 0f, dz * speed);
+-        if (!match.modifier(MatchModifier.BUNNY_HOP) || self.zombie) {
++        if (!match.modifier(MatchModifier.BUNNY_HOP) || self.zombie || hopSuppressionTime > 0f) {
+             float blend = self.grounded ? 14f * dt : 3f * dt;
+             self.velocity.x = MathUtil.lerp(self.velocity.x, desired.x, Math.min(1f, blend));
+             self.velocity.z = MathUtil.lerp(self.velocity.z, desired.z, Math.min(1f, blend));
+@@ -1513,7 +1829,9 @@
+                     Combatant.RADIUS, 0.6f);
+             boolean clearAbove = !match.world().boxCollides(probeX, self.position.y + 1.2f, probeZ,
+                     Combatant.RADIUS, 1.0f);
+-            if (blocked && clearAbove) {
++            if (blocked && clearAbove && jumpSafety.canHop(self, match.world(),
++                    desired.x, desired.z, speed,
++                    match.modifier(MatchModifier.LOW_GRAVITY) ? .4f : 1f, dt)) {
+                 match.jump(self, 7.0f);
+                 jumpCooldown = 0.8f;
+             }
+@@ -1573,6 +1891,7 @@
+             if (node < 0) {
+                 continue;
+             }
++            if (routeMemory.failures(node) > 0 || routeMemory.cost(node) > 0f) continue;
+             float x = nav.cellX(node) + 0.5f;
+             float z = nav.cellZ(node) + 0.5f;
+             float travel = (float) Math.hypot(x - self.position.x, z - self.position.z);
+@@ -1598,7 +1917,9 @@
+             if (node < 0) {
+                 continue;
+             }
+-            if (!match.pathFinder().find(start, node, tacticalPath)) {
++            if (!match.pathFinder().canSearch()) break;
++            if (!match.pathFinder().find(start, node, tacticalPath, routeMemory)) {
++                routeMemory.failedGoal(node);
+                 continue;   // unreachable, or the step's search budget is spent
+             }
+             if (fallback < 0) {
+@@ -1622,7 +1943,14 @@
+     private void detectStuck(float dt) {
+         // Intent survives collision zeroing the velocity. Measure progress over time, not frames.
+         float wishSquared = desired.x * desired.x + desired.z * desired.z;
+-        if (!self.grounded || wishSquared < .25f || recoveryTime > 0f) {
++        if (wishSquared < .25f && goalNode >= 0 && recoveryTime <= 0f
++                && diagnosticHoldReason() == BotDiagnostics.NONE) {
++            // A one-frame budget/route transition is not an intentional rest. Preserve its
++            // progress anchor so intermittent deferrals cannot hide a sustained wall collision.
++            stuckTimer = Math.max(0f, stuckTimer - dt);
++            return;
++        }
++        if (wishSquared < .25f || recoveryTime > 0f) {
+             stuckTimer = 0f;
+             lastX = self.position.x; lastZ = self.position.z;
+             return;
+@@ -1633,6 +1961,22 @@
+         float dx = self.position.x - lastX, dz = self.position.z - lastZ;
+         stuckTimer = 0f;
+         if (dx * dx + dz * dz >= .16f) return;
++        // Repeated jumps can remain airborne at the same wall forever. Let the bot land,
++        // then steer a safe detour; vertical bouncing must not erase horizontal stall history.
++        if (!self.grounded) {
++            hopSuppressionTime = 2.5f;
++            jumpCooldown = Math.max(jumpCooldown, hopSuppressionTime);
++            bhop.reset();
++        }
++        int blocked = path.currentNode();
++        if (blocked < 0) blocked = match.nav().nearestNode(self.position.x + desired.x * .3f,
++                self.position.y, self.position.z + desired.z * .3f);
++        routeMemory.avoidNode(blocked);
++        routeMemory.failedGoal(goalNode);
++        if (routeMemory.failures(goalNode) >= 2) {
++            detourNode = alternateApproach(goalNode);
++            detourForGoal = goalNode; detourTime = 5f;
++        }
+         path.clear();
+         repathTimer = navigationProbeTimer = 0f;
+         previousWaypoint = validatedWaypoint = failedGoalNode = -1;
+@@ -1646,11 +1990,22 @@
+             if (BotMovementSafety.canDodge(self, match.world(), escapeX, escapeZ, false)) {
+                 recoveryX = escapeX; recoveryZ = escapeZ; recoveryTime = .75f;
+                 recoveryProbeTime = 0f;
++                if (match.botDiagnostics() != null) match.botDiagnostics().recoveryStarted(self.id);
++                return;
++            }
++        }
++        if (self.grounded && localRecoveryCooldown <= 0f && match.tacticalBudget().takeRecovery()) {
++            localRecoveryCooldown = 3f;
++            if (localRecovery.begin(self, match.world(),
++                    match.modifier(MatchModifier.LOW_GRAVITY) ? .4f : 1f, forwardX, forwardZ)) {
++                coverCycle.reset(); combatPosition = -1;
++                if (match.botDiagnostics() != null) match.botDiagnostics().recoveryStarted(self.id);
+                 return;
+             }
+         }
+         // A free patrol may pick another local goal; assigned soldiers retain their objective.
+         if (state == State.PATROL && !tacticalAssignment() && match.objectives() == null) {
++            if (match.botDiagnostics() != null) match.botDiagnostics().goalAbandoned(self.id);
+             goalNode = -1;
+             goalCooldown = 0f;
+         }
+--- /dev/null
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotCoverCycle.java
+@@ -0,0 +1,53 @@
++package com.ccs.voxelgun.game;
++
++/** A finite move-hide-peek-return sequence. It never moves bodies or supplies enemy knowledge. */
++public final class BotCoverCycle {
++    private int cover = -1, peek = -1;
++    private boolean exposing, arrived, relocate;
++    private float remaining, phaseTime, previousDurability, damage;
++    private int hits;
++    private float skill;
++
++    public void start(int coverNode, int peekNode, Combatant c, Difficulty difficulty) {
++        cover = coverNode; peek = peekNode; skill = difficulty.tactics();
++        remaining = 9f; phaseTime = 1.3f - skill * .4f;
++        previousDurability = c.health + c.armor; damage = 0f; hits = 0;
++        exposing = arrived = relocate = false;
++    }
++
++    public void reset() { cover = peek = -1; remaining = 0f; exposing = arrived = relocate = false; }
++    public boolean active() { return cover >= 0 && remaining > 0f; }
++    public int destination() { return exposing ? peek : cover; }
++    public int coverNode() { return cover; }
++    public boolean settled() { return active() && arrived; }
++    public boolean hidden() { return active() && !exposing && arrived; }
++    public boolean canFire() { return active() && exposing && arrived; }
++    public boolean needsRelocation() { return relocate; }
++
++    public void update(Combatant c, NavGrid nav, float dt) {
++        if (!active()) return;
++        remaining -= dt;
++        if (!c.alive || !nav.valid(cover) || !nav.valid(peek)) { reset(); return; }
++        float durability = c.health + c.armor;
++        if (durability < previousDurability - .1f) { damage += previousDurability - durability; hits++; }
++        previousDurability = durability;
++        if (hits >= 2 || damage >= 25f) { relocate = true; remaining = 0f; return; }
++        boolean reloading = c.weapon() != null && (c.weapon().reloading() || c.weapon().empty());
++        if (exposing && reloading) {
++            exposing = arrived = false;
++            phaseTime = 1.3f - skill * .4f;
++        }
++        int destination = destination();
++        float dx = nav.cellX(destination) + .5f - c.position.x;
++        float dz = nav.cellZ(destination) + .5f - c.position.z;
++        float arrivalSquared = exposing ? .0225f : .36f;
++        arrived = dx * dx + dz * dz < arrivalSquared && Math.abs(nav.nodeY(destination) - c.position.y) < 1f;
++        if (!arrived) return;
++        if (!exposing && reloading) return;
++        phaseTime -= dt;
++        if (phaseTime <= 0f || exposing && reloading) {
++            exposing = !exposing; arrived = false;
++            phaseTime = exposing ? .8f + skill * .4f : 1.3f - skill * .4f;
++        }
++    }
++}
+--- /dev/null
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotDiagnostics.java
+@@ -0,0 +1,229 @@
++package com.ccs.voxelgun.game;
++
++import com.ccs.voxelgun.math.MathUtil;
++
++/**
++ * Opt-in, single-writer behaviour telemetry for headless scenarios and debug sessions.
++ * Nothing is allocated or logged by sample/event methods. Call {@link #snapshot()} only when a
++ * report is needed. Sampling must happen after collision, with intent captured before collision.
++ */
++public final class BotDiagnostics {
++    public static final int NONE = 0, COMBAT = 1, OBJECTIVE = 2, COVER = 3, RANGE = 4,
++            INVESTIGATION = 5;
++    /** A short reversal or a collision being resolved is not a sustained stall. */
++    public static final float STALL_GRACE_SECONDS = 1.5f;
++    /** Progress is measured from an anchor, so jitter against a wall cannot count as travel. */
++    public static final float PROGRESS_DISTANCE = .45f;
++    public static final float MOVING_SPEED = .30f;
++    private static final float SPIN_TURN = (float) (Math.PI * 2.0);
++    private final Tracker[] trackers;
++
++    public BotDiagnostics(int combatantCapacity) {
++        trackers = new Tracker[Math.max(1, combatantCapacity)];
++        for (int i = 0; i < trackers.length; i++) trackers[i] = new Tracker(i);
++    }
++
++    /** Countdown, round breaks, dead bodies and respawn teleports never count as stalls. */
++    public void sample(Combatant bot, float dt, boolean combatActive, boolean wantsMovement,
++                       int holdReason) {
++        Tracker t = tracker(bot.id);
++        if (t == null || !bot.bot || dt <= 0f || !Float.isFinite(dt)) return;
++        t.seen = true;
++        if (!combatActive || !bot.alive) {
++            t.resetObservation();
++            return;
++        }
++        if (!t.observing || t.lastDeaths != bot.deaths) {
++            t.observing = true;
++            t.lastX = t.anchorX = bot.position.x;
++            t.lastZ = t.anchorZ = bot.position.z;
++            t.lastYaw = bot.yaw;
++            t.lastDeaths = bot.deaths;
++            t.resetWindow();
++        }
++        float dx = bot.position.x - t.lastX, dz = bot.position.z - t.lastZ;
++        float distance = (float) Math.sqrt(dx * dx + dz * dz);
++        float turn = MathUtil.wrapAngle(bot.yaw - t.lastYaw);
++        t.lastX = bot.position.x;
++        t.lastZ = bot.position.z;
++        t.lastYaw = bot.yaw;
++        t.activeSeconds += dt;
++        // Movement/travel metrics exclude respawns, scripted teleports and transient bad positions.
++        if (!Float.isFinite(distance) || !Float.isFinite(turn)) {
++            t.invalidSamples++;
++            t.resetObservation();
++            return;
++        }
++        if (distance > Math.max(4f, dt * 80f)) {
++            t.anchorX = bot.position.x;
++            t.anchorZ = bot.position.z;
++            t.resetWindow();
++            t.teleports++;
++            return;
++        }
++        t.distance += distance;
++        t.turnRadians += Math.abs(turn);
++        boolean moving = distance > dt * MOVING_SPEED;
++        boolean intentional = holdReason != NONE;
++        if (moving) t.movingSeconds += dt;
++        else if (intentional) {
++            t.holdSeconds += dt;
++            if (holdReason >= COMBAT && holdReason <= INVESTIGATION) t.holds[holdReason] += dt;
++        } else t.idleSeconds += dt;
++        if (wantsMovement) t.movementIntentSeconds += dt;
++
++        float progressX = bot.position.x - t.anchorX;
++        float progressZ = bot.position.z - t.anchorZ;
++        boolean progressed = progressX * progressX + progressZ * progressZ
++                >= PROGRESS_DISTANCE * PROGRESS_DISTANCE;
++        if (progressed || intentional) {
++            t.anchorX = bot.position.x;
++            t.anchorZ = bot.position.z;
++            t.resetWindow();
++            return;
++        }
++        t.noProgressSeconds += dt;
++        t.signedTurn += turn;
++        if (wantsMovement) {
++            t.blockedSeconds += dt;
++            if (t.blockedSeconds > STALL_GRACE_SECONDS) {
++                t.stalledSeconds += dt;
++                t.currentStall += dt;
++                t.maxStallSeconds = Math.max(t.maxStallSeconds, t.currentStall);
++            }
++        } else {
++            // A brief zero command from recovery must not erase a wall stall. A sustained
++            // pause is reported as unexplained idle instead of pretending it was a collision.
++            t.blockedSeconds = Math.max(0f, t.blockedSeconds - dt);
++            t.currentStall = 0f;
++        }
++        if (t.noProgressSeconds > STALL_GRACE_SECONDS && Math.abs(t.signedTurn) >= SPIN_TURN) {
++            t.spinningSeconds += dt;
++        }
++    }
++
++    /** Record a failed search or invalidated route edge, never a frame-budget deferral. */
++    public void pathFailed(int id, int goalNode) {
++        Tracker t = tracker(id);
++        if (t == null) return;
++        t.pathFailures++;
++        if (goalNode >= 0 && t.lastFailedGoal == goalNode) t.repeatedGoalFailures++;
++        t.lastFailedGoal = goalNode;
++    }
++
++    public void pathSucceeded(int id) {
++        Tracker t = tracker(id);
++        // A successful search is not arrival: a route can still fail body-clearance validation.
++        if (t != null) t.pathSuccesses++;
++    }
++
++    /** Clear failure history only after movement actually reaches its goal. */
++    public void goalReached(int id) {
++        Tracker t = tracker(id);
++        if (t != null) t.lastFailedGoal = -1;
++    }
++
++    public void pathDeferred(int id) {
++        Tracker t = tracker(id);
++        if (t != null) t.pathDeferrals++;
++    }
++
++    public void recoveryStarted(int id) {
++        Tracker t = tracker(id);
++        if (t != null) t.recoveries++;
++    }
++
++    public void goalAbandoned(int id) {
++        Tracker t = tracker(id);
++        if (t != null) { t.abandonedGoals++; t.lastFailedGoal = -1; }
++    }
++
++    public Snapshot snapshot() {
++        int count = 0;
++        for (Tracker tracker : trackers) if (tracker.seen) count++;
++        BotSnapshot[] bots = new BotSnapshot[count];
++        int at = 0;
++        for (Tracker tracker : trackers) if (tracker.seen) bots[at++] = new BotSnapshot(tracker);
++        return new Snapshot(bots);
++    }
++
++    private Tracker tracker(int id) {
++        return id >= 0 && id < trackers.length ? trackers[id] : null;
++    }
++
++    private static final class Tracker {
++        final int id;
++        final double[] holds = new double[INVESTIGATION + 1];
++        boolean seen, observing;
++        int lastDeaths, lastFailedGoal = -1;
++        float lastX, lastZ, lastYaw, anchorX, anchorZ, noProgressSeconds, blockedSeconds,
++                signedTurn, currentStall;
++        double activeSeconds, movingSeconds, holdSeconds, idleSeconds, movementIntentSeconds,
++                stalledSeconds, spinningSeconds, maxStallSeconds, distance, turnRadians;
++        long pathFailures, repeatedGoalFailures, pathSuccesses, pathDeferrals, recoveries,
++                abandonedGoals, teleports, invalidSamples;
++        Tracker(int id) { this.id = id; }
++        void resetObservation() { observing = false; resetWindow(); }
++        void resetWindow() {
++            noProgressSeconds = blockedSeconds = signedTurn = currentStall = 0f;
++        }
++    }
++
++    /** Detached readout: safe to format/store without retaining mutable simulation state. */
++    public static final class BotSnapshot {
++        public final int id;
++        public final double activeSeconds, movingSeconds, holdSeconds, idleSeconds,
++                movementIntentSeconds, stalledSeconds, spinningSeconds, maxStallSeconds,
++                distance, turnRadians;
++        public final double[] holdSecondsByReason;
++        public final long pathFailures, repeatedGoalFailures, pathSuccesses, pathDeferrals,
++                recoveries, abandonedGoals, teleports, invalidSamples;
++        private BotSnapshot(Tracker t) {
++            id = t.id;
++            activeSeconds = t.activeSeconds; movingSeconds = t.movingSeconds;
++            holdSeconds = t.holdSeconds; idleSeconds = t.idleSeconds;
++            movementIntentSeconds = t.movementIntentSeconds; stalledSeconds = t.stalledSeconds;
++            spinningSeconds = t.spinningSeconds; maxStallSeconds = t.maxStallSeconds;
++            distance = t.distance; turnRadians = t.turnRadians;
++            holdSecondsByReason = t.holds.clone();
++            pathFailures = t.pathFailures; repeatedGoalFailures = t.repeatedGoalFailures;
++            pathSuccesses = t.pathSuccesses; pathDeferrals = t.pathDeferrals;
++            recoveries = t.recoveries; abandonedGoals = t.abandonedGoals;
++            teleports = t.teleports; invalidSamples = t.invalidSamples;
++        }
++    }
++
++    public static final class Snapshot {
++        public final BotSnapshot[] bots;
++        public final double activeSeconds, movingSeconds, holdSeconds, idleSeconds,
++                movementIntentSeconds, stalledSeconds, spinningSeconds, maxStallSeconds,
++                distance, turnRadians;
++        public final long pathFailures, repeatedGoalFailures, pathSuccesses, pathDeferrals,
++                recoveries, abandonedGoals, teleports, invalidSamples;
++        private Snapshot(BotSnapshot[] bots) {
++            this.bots = bots;
++            double active = 0, moving = 0, holding = 0, idle = 0, intent = 0, stalled = 0,
++                    spinning = 0, maxStall = 0, travel = 0, turning = 0;
++            long failures = 0, repeated = 0, successes = 0, deferred = 0, recovery = 0,
++                    abandoned = 0, teleported = 0, invalid = 0;
++            for (BotSnapshot bot : bots) {
++                active += bot.activeSeconds; moving += bot.movingSeconds;
++                holding += bot.holdSeconds; idle += bot.idleSeconds;
++                intent += bot.movementIntentSeconds; stalled += bot.stalledSeconds;
++                spinning += bot.spinningSeconds; maxStall = Math.max(maxStall, bot.maxStallSeconds);
++                travel += bot.distance; turning += bot.turnRadians;
++                failures += bot.pathFailures; repeated += bot.repeatedGoalFailures;
++                successes += bot.pathSuccesses; deferred += bot.pathDeferrals;
++                recovery += bot.recoveries; abandoned += bot.abandonedGoals;
++                teleported += bot.teleports; invalid += bot.invalidSamples;
++            }
++            activeSeconds = active; movingSeconds = moving; holdSeconds = holding;
++            idleSeconds = idle; movementIntentSeconds = intent; stalledSeconds = stalled;
++            spinningSeconds = spinning; maxStallSeconds = maxStall;
++            distance = travel; turnRadians = turning; pathFailures = failures;
++            repeatedGoalFailures = repeated; pathSuccesses = successes; pathDeferrals = deferred;
++            recoveries = recovery; abandonedGoals = abandoned; teleports = teleported;
++            invalidSamples = invalid;
++        }
++    }
++}
+--- a/app/src/main/java/com/ccs/voxelgun/game/BotEvasionController.java
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotEvasionController.java
+@@ -98,6 +98,13 @@
+             }
+             requestJump = jumping && self.grounded;
+         }
++        // A maneuver can travel farther than its initial clearance probe. Recheck while
++        // grounded so a long slide cannot carry a previously safe direction off a bank.
++        if (self.grounded && !BotMovementSafety.canDodge(self, world, directionX, directionZ, false)) {
++            activeLeft = 0f; self.crouching = false;
++            self.velocity.x = self.velocity.z = 0f; wish.set(0f, 0f, 0f);
++            movement.reset(); return false;
++        }
+         wish.set(directionX * referenceSpeed * .90f, 0f,
+                 directionZ * referenceSpeed * .90f);
+         self.aiming = false;
+--- /dev/null
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotHearing.java
+@@ -0,0 +1,139 @@
++package com.ccs.voxelgun.game;
++
++import com.ccs.voxelgun.voxel.Materials;
++import com.ccs.voxelgun.voxel.VoxelWorld;
++
++/**
++ * A short-lived, approximate sound cue; it never acquires or tracks a combat target.
++ *
++ * <p>Distance/priority checks precede a bounded sample of authoritative Java voxels. Accepted
++ * bursts are rate limited, with one exception for a substantially closer danger. No raycasts,
++ * native calls, lists or per-event allocations are needed, even during automatic gunfire.
++ */
++public final class BotHearing {
++    private static final int MAX_SAMPLES = 48;
++    private static final float PROBE_INTERVAL = .12f;
++    private static final float PRIORITY_MARGIN = .22f;
++
++    private final int seed;
++    private float cooldown, probeCooldown, suppressed, cueLeft;
++    private float cueX, cueY, cueZ, cueUrgency, cueLifetime;
++    private boolean priorityOverride;
++    private int probeSamples;
++
++    public BotHearing(long seed) { this.seed = (int) (seed ^ (seed >>> 32)); }
++
++    public void reset() {
++        cooldown = probeCooldown = suppressed = cueLeft = 0f;
++        cueX = cueY = cueZ = cueUrgency = cueLifetime = 0f;
++        priorityOverride = false;
++        probeSamples = 0;
++    }
++
++    public void update(float dt) {
++        if (!(dt > 0f) || !Float.isFinite(dt)) return;
++        cooldown = Math.max(0f, cooldown - dt);
++        probeCooldown = Math.max(0f, probeCooldown - dt);
++        suppressed = Math.max(0f, suppressed - dt);
++        cueLeft = Math.max(0f, cueLeft - dt);
++    }
++
++    /** Prevents a failed investigation being restarted by the same continuous noise. */
++    public void suppressFor(float seconds) {
++        if (Float.isFinite(seconds)) suppressed = Math.max(suppressed, seconds);
++    }
++
++    /**
++     * Inputs use combatant feet positions, matching Match's sound dispatch. The caller supplies
++     * the posture/skill-scaled range and retains mode, visible-target and objective restrictions.
++     * A true result replaces the cue exposed by the getters; false preserves the previous cue.
++     */
++    public boolean accept(Combatant self, VoxelWorld world, float x, float y, float z,
++                          float range, boolean footstep, Difficulty difficulty) {
++        probeSamples = 0;
++        if (!self.alive || suppressed > 0f || !(range > 0f) || !Float.isFinite(range)
++                || !Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) return false;
++        float dx = x - self.position.x, dy = y - self.position.y, dz = z - self.position.z;
++        float distanceSquared = dx * dx + dy * dy + dz * dz;
++        if (!Float.isFinite(distanceSquared) || distanceSquared > range * range) return false;
++        float distance = (float) Math.sqrt(distanceSquared);
++        float urgency = urgency(distance, range, footstep);
++        boolean overriding = cooldown > 0f;
++        // Retain the close threat briefly even when a distant gun has a much larger sound radius.
++        if (cueLeft > 0f && urgency + .08f < cueUrgency) return false;
++        if (overriding && (!priorityOverride || urgency < cueUrgency + PRIORITY_MARGIN)) return false;
++        if (probeCooldown > 0f && !overriding) return false;
++        if (overriding) priorityOverride = false;
++        probeCooldown = PROBE_INTERVAL;
++
++        float depth = obstructionDepth(self, world, x, y, z, footstep);
++        float audibleRange = range / (1f + depth * (footstep ? .55f : .28f));
++        if (distance > audibleRange) return false;
++        urgency = urgency(distance, audibleRange, footstep);
++        if (cueLeft > 0f && urgency + .08f < cueUrgency) return false;
++        if (overriding && urgency < cueUrgency + PRIORITY_MARGIN) return false;
++
++        float skill = difficulty.tactics();
++        cooldown = .8f + (1f - skill) * .6f;
++        if (!overriding) priorityOverride = true;
++        cueUrgency = urgency;
++        cueLifetime = 1.1f + Math.min(.7f, urgency * .45f);
++        cueLeft = cueLifetime;
++
++        // A stable offset for each small source area avoids averaging repeated shots into exact
++        // coordinates, and avoids a stationary burst continually changing the investigation path.
++        int key = seed ^ (int) Math.floor(x / 4f) * 0x1f123bb5
++                ^ (int) Math.floor(z / 4f) * 0x5f356495 ^ (int) Math.floor(y / 3f) * 0x2c1b3c6d;
++        key ^= key >>> 16;
++        key *= 0x7feb352d;
++        key ^= key >>> 15;
++        float angle = (key & 0xffff) * ((float) (Math.PI * 2.0) / 65536f);
++        float error = Math.min(4.5f, .55f + distance * (.03f + (1f - skill) * .07f)
++                + Math.min(2f, depth) * .3f);
++        cueX = x + (float) Math.cos(angle) * error;
++        cueZ = z + (float) Math.sin(angle) * error;
++        // Keep the estimated floor while discarding sub-voxel vertical precision. Navigation
++        // resolves the horizontal region to a standable node; this does not test enemy visibility.
++        cueY = Math.round(y);
++        return true;
++    }
++
++    private static float urgency(float distance, float range, boolean footstep) {
++        return 1f / (1f + distance * .17f)
++                + Math.max(0f, 1f - distance / range) * .25f
++                + (footstep && distance < 7f ? .35f : 0f);
++    }
++
++    private float obstructionDepth(Combatant self, VoxelWorld world,
++                                   float x, float y, float z, boolean footstep) {
++        float ax = self.eyeX(), ay = self.eyeY(), az = self.eyeZ();
++        float dx = x - ax, dy = y + (footstep ? .2f : 1.25f) - ay, dz = z - az;
++        float length = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
++        int samples = Math.min(MAX_SAMPLES, Math.max(1, (int) Math.ceil(length / .65f)));
++        float stepLength = length / samples;
++        float depth = 0f;
++        for (int i = 0; i < samples; i++) {
++            float t = (i + .5f) / samples;
++            int material = world.get((int) Math.floor(ax + dx * t),
++                    (int) Math.floor(ay + dy * t), (int) Math.floor(az + dz * t)) & 255;
++            probeSamples++;
++            if (Materials.solid((byte) material)) {
++                float weight = material == (Materials.GLASS & 255)
++                        || material == (Materials.GLASS_TINTED & 255)
++                        || material == (Materials.GRATE & 255) ? .3f
++                        : material == Materials.LEAVES || material == Materials.CANVAS ? .4f : 1f;
++                depth += stepLength * weight;
++            }
++        }
++        return depth;
++    }
++
++    public float x() { return cueX; }
++    public float y() { return cueY; }
++    public float z() { return cueZ; }
++    public float urgency() { return cueUrgency; }
++    public float lifetimeSeconds() { return cueLifetime; }
++
++    /** Package-visible for the acoustic work-budget regression test. */
++    int probeSamples() { return probeSamples; }
++}
+--- /dev/null
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotLocalRecovery.java
+@@ -0,0 +1,146 @@
++package com.ccs.voxelgun.game;
++
++import com.ccs.voxelgun.math.Vec3;
++import com.ccs.voxelgun.voxel.Materials;
++import com.ccs.voxelgun.voxel.VoxelWorld;
++
++/**
++ * Rare fallback for a body stranded on a small ledge outside the walkable navigation layer.
++ * Tries at most 24 short, two-leg walks with the actual collision integrator and a confirmed dry
++ * landing no more than four blocks below. Planning and execution never move the real position.
++ */
++public final class BotLocalRecovery {
++    public static final float SPEED = 2.4f;
++    public static final float MAX_DROP = 4f;
++    private static final float DT = 1f / 60f;
++    private static final int FIRST_STEPS = 28, SECOND_STEPS = 72;
++    private static final float FIRST_SECONDS = FIRST_STEPS * DT;
++    private static final int[] HEADING_ORDER = {0, 1, -1, 2, -2, 3, -3, 4};
++    private final Vec3 simulatedPosition = new Vec3(), simulatedVelocity = new Vec3();
++    private float firstX, firstZ, secondX, secondZ, landingX, landingY, landingZ;
++    private float elapsed, duration;
++    private int checkedRevision;
++    private boolean active;
++
++    public boolean active() { return active; }
++    public void reset() { active = false; elapsed = duration = 0f; }
++
++    /** Call only after ordinary supported sidesteps failed; the body must have landed first. */
++    public boolean begin(Combatant c, VoxelWorld world, float gravityMultiplier,
++                         float preferredX, float preferredZ) {
++        reset();
++        if (!c.grounded || Swimming.inWater(world, c)
++                || !Float.isFinite(gravityMultiplier) || gravityMultiplier <= 0f
++                || world.boxCollides(c.position.x, c.position.y, c.position.z,
++                        Combatant.RADIUS, Combatant.HEIGHT)) return false;
++        float heading = preferredX * preferredX + preferredZ * preferredZ > .001f
++                ? (float) Math.atan2(preferredZ, preferredX) : c.yaw - (float) Math.PI / 2f;
++        for (int direction : HEADING_ORDER) {
++            float angle = heading + direction * (float) Math.PI / 4f;
++            float dx = (float) Math.cos(angle), dz = (float) Math.sin(angle);
++            for (int turn = 0; turn < 3; turn++) {
++                float nextX = turn == 0 ? dx : turn == 1 ? -dz : dz;
++                float nextZ = turn == 0 ? dz : turn == 1 ? dx : -dx;
++                if (simulate(c, world, gravityMultiplier, dx, dz, nextX, nextZ)) {
++                    firstX = dx; firstZ = dz; secondX = nextX; secondZ = nextZ;
++                    elapsed = 0f;
++                    checkedRevision = world.revision();
++                    active = true;
++                    return true;
++                }
++            }
++        }
++        return false;
++    }
++
++    /**
++     * Writes only the requested horizontal velocity. Match still applies gravity and collisions.
++     * The caller must suppress jumping/evasion while active and capture this velocity as intent.
++     */
++    public boolean update(Combatant c, VoxelWorld world, float dt) {
++        if (!active) return false;
++        if (!c.alive || dt <= 0f || !Float.isFinite(dt)) { reset(); return false; }
++        int revision = world.revision();
++        if (revision != checkedRevision) {
++            checkedRevision = revision;
++            if (!landingSafe(world, landingX, landingY, landingZ)) {
++                reset(); c.velocity.x = c.velocity.z = 0f; return false;
++            }
++        }
++        float dx = c.position.x - landingX, dz = c.position.z - landingZ;
++        if ((elapsed >= FIRST_SECONDS && c.grounded
++                && Math.abs(c.position.y - landingY) < .2f && dx * dx + dz * dz < .20f
++                && landingSafe(world, c.position.x, c.position.y, c.position.z))
++                || elapsed > duration + .35f) {
++            reset(); c.velocity.x = c.velocity.z = 0f; return false;
++        }
++        boolean first = elapsed < FIRST_SECONDS;
++        c.velocity.x = (first ? firstX : secondX) * SPEED;
++        c.velocity.z = (first ? firstZ : secondZ) * SPEED;
++        c.crouching = c.sprinting = false;
++        elapsed += dt;
++        return true;
++    }
++
++    private boolean simulate(Combatant c, VoxelWorld world, float gravityMultiplier,
++                              float dx, float dz, float nextX, float nextZ) {
++        simulatedPosition.set(c.position);
++        simulatedVelocity.set(0f, 0f, 0f);
++        float blocked = 0f;
++        for (int step = 0; step < FIRST_STEPS + SECOND_STEPS; step++) {
++            boolean first = step < FIRST_STEPS;
++            simulatedVelocity.x = (first ? dx : nextX) * SPEED;
++            simulatedVelocity.z = (first ? dz : nextZ) * SPEED;
++            simulatedVelocity.y = Math.max(Physics.TERMINAL_VELOCITY,
++                    simulatedVelocity.y + Physics.GRAVITY * gravityMultiplier * DT);
++            float previousX = simulatedPosition.x, previousZ = simulatedPosition.z;
++            boolean grounded = Physics.move(world, simulatedPosition, simulatedVelocity, DT,
++                    Combatant.RADIUS, Combatant.HEIGHT, true);
++            if (simulatedPosition.y < c.position.y - MAX_DROP
++                    || simulatedPosition.y > c.position.y + Physics.STEP_HEIGHT + .05f
++                    || touchesWater(world, simulatedPosition)
++                    || world.boxCollides(simulatedPosition.x, simulatedPosition.y,
++                            simulatedPosition.z, Combatant.RADIUS, Combatant.HEIGHT)) return false;
++            int support = world.get(VoxelWorld.floor(simulatedPosition.x),
++                    VoxelWorld.floor(simulatedPosition.y - .05f), VoxelWorld.floor(simulatedPosition.z));
++            if (grounded && (support == Materials.LAVA || support == Materials.JUMP_PAD)) return false;
++            float movedX = simulatedPosition.x - previousX;
++            float movedZ = simulatedPosition.z - previousZ;
++            blocked = movedX * movedX + movedZ * movedZ < .000025f ? blocked + DT : 0f;
++            if (blocked > .2f) return false;
++            float progressX = simulatedPosition.x - c.position.x;
++            float progressZ = simulatedPosition.z - c.position.z;
++            if (!first && grounded && progressX * progressX + progressZ * progressZ >= 1.44f
++                    && landingSafe(world, simulatedPosition.x, simulatedPosition.y,
++                            simulatedPosition.z)) {
++                landingX = simulatedPosition.x; landingY = simulatedPosition.y;
++                landingZ = simulatedPosition.z;
++                duration = (step + 1) * DT;
++                return true;
++            }
++        }
++        return false;
++    }
++
++    private static boolean landingSafe(VoxelWorld world, float x, float y, float z) {
++        int bx = VoxelWorld.floor(x), by = VoxelWorld.floor(y - .05f), bz = VoxelWorld.floor(z);
++        return world.inside(bx, by, bz) && world.solid(bx, by, bz)
++                && world.get(bx, by, bz) != Materials.LAVA
++                && world.get(bx, by, bz) != Materials.JUMP_PAD
++                && !world.boxCollides(x, y, z, Combatant.RADIUS, Combatant.HEIGHT)
++                && world.get(bx, VoxelWorld.floor(y + .02f), bz) != Materials.WATER
++                && world.get(bx, VoxelWorld.floor(y + 1f), bz) != Materials.WATER;
++    }
++
++    /** Swimming and jump-pad impulses would invalidate an ordinary gravity-only trajectory. */
++    private static boolean touchesWater(VoxelWorld world, Vec3 position) {
++        for (int x = VoxelWorld.floor(position.x - Combatant.RADIUS);
++             x <= VoxelWorld.floor(position.x + Combatant.RADIUS); x++)
++            for (int z = VoxelWorld.floor(position.z - Combatant.RADIUS);
++                 z <= VoxelWorld.floor(position.z + Combatant.RADIUS); z++)
++                for (int y = VoxelWorld.floor(position.y + .02f);
++                     y <= VoxelWorld.floor(position.y + Combatant.HEIGHT - .02f); y++)
++                    if (world.get(x, y, z) == Materials.WATER) return true;
++        return false;
++    }
++}
+--- a/app/src/main/java/com/ccs/voxelgun/game/BotMovementSafety.java
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotMovementSafety.java
+@@ -1,6 +1,7 @@
+ package com.ccs.voxelgun.game;
+ 
+ import com.ccs.voxelgun.voxel.VoxelWorld;
++import com.ccs.voxelgun.voxel.Materials;
+ 
+ /**
+  * Bounded, cached locomotion clearance. Reads authoritative Java voxels: no extra JNI sight rays,
+@@ -8,34 +9,81 @@
+  */
+ public final class BotMovementSafety {
+     private static final float PROBE_INTERVAL = .12f;
++    private static final float HOP_JUMP_SPEED = 7.4f;
++    private static final float HOP_SAMPLE_SPACING = .5f;
++    private static final int MAX_HOP_SAMPLES = 192;
+     private float probeLeft;
+-    private float lastX, lastZ, lastDirectionX, lastDirectionZ;
++    private float lastX, lastY, lastZ, lastDirectionX, lastDirectionZ, lastSpeed, lastGravity;
+     private int revision = -1;
+     private boolean hopClear;
+ 
+     public void reset() { probeLeft = 0f; revision = -1; hopClear = false; }
+ 
++    /** Compatibility entry point for ordinary gravity and an unboosted movement request. */
+     public boolean canHop(Combatant c, VoxelWorld world, float wishX, float wishZ, float dt) {
++        float speed = Math.max((float) Math.hypot(wishX, wishZ),
++                (float) Math.hypot(c.velocity.x, c.velocity.z));
++        return canHop(c, world, wishX, wishZ, speed, 1f, dt);
++    }
++
++    /**
++     * Predict the entire hop, not merely the next walking step. Takeoff speed includes any
++     * earned bhop boost; low gravity lengthens the flight and therefore the landing corridor.
++     */
++    public boolean canHop(Combatant c, VoxelWorld world, float wishX, float wishZ,
++                          float takeoffSpeed, float gravityScale, float dt) {
+         probeLeft -= dt;
+         float lengthSquared = wishX * wishX + wishZ * wishZ;
+-        if (lengthSquared < .001f) return false;
+-        // Preserve the takeoff decision while flying. Sampling at the raised feet would mistake
+-        // a normal jump arc for a cliff and erase the freshly armed landing combination.
++        if (lengthSquared < .001f || !Float.isFinite(takeoffSpeed)
++                || !Float.isFinite(gravityScale) || gravityScale <= 0f) return false;
++        // Preserve the takeoff decision while flying. Sampling at raised feet would mistake a
++        // normal jump arc for a cliff and erase the freshly armed landing combination.
+         if (!c.grounded) return hopClear;
+         float inverseLength = 1f / (float) Math.sqrt(lengthSquared);
+         float dx = wishX * inverseLength, dz = wishZ * inverseLength;
++        float speed = Math.max(takeoffSpeed, (float) Math.sqrt(lengthSquared));
+         int currentRevision = world.revision();
+         float movedX = c.position.x - lastX, movedZ = c.position.z - lastZ;
+         if (probeLeft <= 0f || currentRevision != revision
+-                || movedX * movedX + movedZ * movedZ > 1f
+-                || dx * lastDirectionX + dz * lastDirectionZ < .92f) {
+-            hopClear = corridorClear(c, world, dx, dz, .70f, Combatant.HEIGHT + 1.4f);
++                || movedX * movedX + movedZ * movedZ > .16f || Math.abs(c.position.y - lastY) > .2f
++                || dx * lastDirectionX + dz * lastDirectionZ < .98f
++                || Math.abs(speed - lastSpeed) > .25f || Math.abs(gravityScale - lastGravity) > .001f) {
++            hopClear = hopCorridorClear(c, world, dx, dz, speed, gravityScale);
+             probeLeft = PROBE_INTERVAL;
+             revision = currentRevision;
+-            lastX = c.position.x; lastZ = c.position.z;
++            lastX = c.position.x; lastY = c.position.y; lastZ = c.position.z;
+             lastDirectionX = dx; lastDirectionZ = dz;
++            lastSpeed = speed; lastGravity = gravityScale;
+         }
+         return hopClear;
++    }
++
++    private static boolean hopCorridorClear(Combatant c, VoxelWorld world, float dx, float dz,
++                                            float speed, float gravityScale) {
++        float gravity = -Physics.GRAVITY * gravityScale;
++        // Allow a one-block descending step, and leave one meter for frame/cache uncertainty.
++        float flightTime = (HOP_JUMP_SPEED
++                + (float) Math.sqrt(HOP_JUMP_SPEED * HOP_JUMP_SPEED + 2f * gravity)) / gravity;
++        float distance = Math.max(2.2f, speed * flightTime + 1f);
++        if (!Float.isFinite(distance) || distance > MAX_HOP_SAMPLES * HOP_SAMPLE_SPACING) return false;
++        int samples = Math.max(1, (int) Math.ceil(distance / HOP_SAMPLE_SPACING));
++        float sideX = -dz * .70f, sideZ = dx * .70f;
++        for (int i = 0; i <= samples; i++) {
++            float forward = distance * i / samples;
++            float time = Math.min(flightTime, forward / Math.max(.1f, speed));
++            float rise = Math.max(0f, HOP_JUMP_SPEED * time - .5f * gravity * time * time);
++            float x = c.position.x + dx * forward, z = c.position.z + dz * forward;
++            float height = Combatant.HEIGHT + rise + .15f;
++            // Support along the route makes a blocked/shortened jump safe too. Reject lava,
++            // water and void before launching, even if the nominal landing is beyond them.
++            if (!supported(world, x, c.position.y, z)
++                    || !supported(world, x + sideX, c.position.y, z + sideZ)
++                    || !supported(world, x - sideX, c.position.y, z - sideZ)
++                    || !bodyClear(world, x, c.position.y, z, height)
++                    || !bodyClear(world, x + sideX, c.position.y, z + sideZ, height)
++                    || !bodyClear(world, x - sideX, c.position.y, z - sideZ, height)) return false;
++        }
++        return true;
+     }
+ 
+     /** Called once when selecting an evasive maneuver, not continuously for every combat frame. */
+@@ -52,7 +100,7 @@
+             float distance = step == 0 ? 0f : step == 1 ? .9f : 2.2f;
+             float x = c.position.x + dx * distance, z = c.position.z + dz * distance;
+             if (!(supported(world, x, c.position.y, z)
+-                    || !c.grounded && world.solidAt(x, c.position.y - 2.05f, z))
++                    || !c.grounded && safeFloor(world, x, c.position.y - 2.05f, z))
+                     || !bodyClear(world, x, c.position.y, z, height)
+                     || !bodyClear(world, x + sideX, c.position.y, z + sideZ, height)
+                     || !bodyClear(world, x - sideX, c.position.y, z - sideZ, height)) {
+@@ -64,7 +112,12 @@
+ 
+     private static boolean supported(VoxelWorld world, float x, float y, float z) {
+         // A single descending stair is valid; missing support beneath the entire lead is not.
+-        return world.solidAt(x, y - .05f, z) || world.solidAt(x, y - 1.05f, z);
++        return safeFloor(world, x, y - .05f, z) || safeFloor(world, x, y - 1.05f, z);
++    }
++
++    private static boolean safeFloor(VoxelWorld world, float x, float y, float z) {
++        int material = world.get(VoxelWorld.floor(x), VoxelWorld.floor(y), VoxelWorld.floor(z)) & 255;
++        return material != Materials.LAVA && Materials.solid(material);
+     }
+ 
+     private static boolean bodyClear(VoxelWorld world, float x, float y, float z, float height) {
+@@ -80,7 +133,8 @@
+         for (int by = minY; by <= maxY; by++) {
+             for (int bz = minZ; bz <= maxZ; bz++) {
+                 for (int bx = minX; bx <= maxX; bx++) {
+-                    if (world.solid(bx, by, bz)) return false;
++                    int material = world.get(bx, by, bz) & 255;
++                    if (Materials.solid(material) || material == (Materials.WATER & 255)) return false;
+                 }
+             }
+         }
+--- /dev/null
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotPositionPlanner.java
+@@ -0,0 +1,135 @@
++package com.ccs.voxelgun.game;
++
++import com.ccs.voxelgun.voxel.VoxelWorld;
++import com.ccs.voxelgun.weapon.WeaponClass;
++import com.ccs.voxelgun.weapon.WeaponType;
++
++/** Geometry ranks a small set first; only finalists spend shared sight/path budgets. */
++public final class BotPositionPlanner {
++    private final VoxelWorld world;
++    private final NavGrid nav;
++    private final PathFinder finder;
++    private final BotTacticalBudget budget;
++    private final int[] candidates = new int[4];
++    private final float[] scores = new float[4];
++    private final int[] neighbours = new int[8 * NavGrid.MAX_LEVELS];
++    private final PathFinder.Path scratch = new PathFinder.Path(256);
++    private int coverNode = -1, peekNode = -1;
++
++    public BotPositionPlanner(VoxelWorld world, NavGrid nav, PathFinder finder, BotTacticalBudget budget) {
++        this.world = world; this.nav = nav; this.finder = finder; this.budget = budget;
++    }
++
++    public int coverNode() { return coverNode; }
++    public int peekNode() { return peekNode; }
++
++    public int firingPosition(Combatant c, WeaponType weapon, float tx, float ty, float tz,
++                              int anchor, float tether, BotRouteMemory memory, int rejected) {
++        rank(c, weapon, tx, tz, anchor, tether, memory, rejected, false);
++        int start = nav.nearestNode(c.position.x, c.position.y, c.position.z);
++        for (int n : candidates) {
++            if (n < 0 || !finder.canSearch() || !budget.take()) break;
++            if (!visible(n, tx, ty, tz)) continue;
++            if (finder.find(start, n, scratch, memory)) return n;
++        }
++        return -1;
++    }
++
++    /** A hidden body position with a connected exposed neighbour: no teleporting around cover. */
++    public boolean coverPair(Combatant c, float tx, float ty, float tz, int anchor, float tether,
++                             BotRouteMemory memory, int rejected, int side) {
++        coverNode = peekNode = -1;
++        rank(c, c.weaponType(), tx, tz, anchor, tether, memory, rejected, true);
++        int start = nav.nearestNode(c.position.x, c.position.y, c.position.z);
++        for (int n : candidates) {
++            if (n < 0 || !finder.canSearch() || !budget.take()) break;
++            if (visible(n, tx, ty, tz)) continue;
++            if (!finder.find(start, n, scratch, memory)) continue;
++            int count = nav.neighbours(n, neighbours);
++            // Alternate which shoulder is checked first after a damaging exposure.
++            for (int i = 0; i < count; i++) {
++                int p = neighbours[Math.floorMod(i + side * 3, count)];
++                if (!usable(p) || !nav.connected(p, n)
++                        || !withinAnchor(p, anchor, tether) || memory.cost(p) > 0f) continue;
++                if (!budget.take()) return false;
++                if (visible(p, tx, ty, tz)) { coverNode = n; peekNode = p; return true; }
++            }
++        }
++        return false;
++    }
++
++    private void rank(Combatant c, WeaponType weapon, float tx, float tz, int anchor,
++                      float tether, BotRouteMemory memory, int rejected, boolean cover) {
++        java.util.Arrays.fill(candidates, -1); java.util.Arrays.fill(scores, -Float.MAX_VALUE);
++        float facing = (float) Math.atan2(tz - c.position.z, tx - c.position.x);
++        for (int sample = 0; sample < 24; sample++) {
++            float angle = facing + (sample % 8) * (float) Math.PI / 4f;
++            float radius = 2f + sample / 8 * 3f;
++            int n = nav.nearestNode(c.position.x + (float) Math.cos(angle) * radius,
++                    c.position.y, c.position.z + (float) Math.sin(angle) * radius);
++            if (n < 0 || n == rejected || !usable(n) || !withinAnchor(n, anchor, tether)
++                    || memory.cost(n) > 0f || memory.failures(n) > 0) continue;
++            float x = nav.cellX(n) + .5f, z = nav.cellZ(n) + .5f;
++            float travel = (float) Math.hypot(x - c.position.x, z - c.position.z);
++            if (travel < 1.2f || travel > 11f || Math.abs(nav.nodeY(n) - c.position.y) > 3f) continue;
++            int exits = nav.neighbours(n, neighbours);
++            if (exits < 2) continue;
++            float range = (float) Math.hypot(tx - x, tz - z);
++            if (range < BotBrain.minimumSafeRangeFor(weapon) + 1f) continue;
++            int shelter = shelterSides(n);
++            if (cover && shelter == 0) continue;
++            float score = cover ? shelter * 3f - travel * .7f + Math.min(30f, range) * .06f
++                    : positionScore(weapon, range, shelter, exits,
++                            nav.nodeY(n) - c.position.y, travel);
++            for (int i = 0; i < candidates.length; i++) {
++                if (candidates[i] == n) break;
++                if (score > scores[i]) {
++                    for (int j = candidates.length - 1; j > i; j--) {
++                        candidates[j] = candidates[j - 1]; scores[j] = scores[j - 1];
++                    }
++                    candidates[i] = n; scores[i] = score; break;
++                }
++            }
++        }
++    }
++
++    static float positionScore(WeaponType weapon, float range, int shelter, int exits,
++                               float elevation, float travel) {
++        WeaponClass type = weapon.weaponClass();
++        boolean close = type == WeaponClass.SHOTGUN || type == WeaponClass.SMG;
++        float ideal = BotBrain.preferredRangeFor(weapon);
++        float score = -Math.abs(range - ideal) * (close ? 1.6f : .8f)
++                + shelter * (close ? 3f : 2f) + Math.min(4, exits) * .35f - travel * .4f;
++        if (type == WeaponClass.SNIPER) score += Math.max(-2f, Math.min(3f, elevation)) * 1.5f;
++        if (type == WeaponClass.LMG && range > 14f && range < 38f) score += 3f;
++        return score;
++    }
++
++    private boolean visible(int n, float x, float y, float z) {
++        return world.lineOfSight(nav.cellX(n) + .5f, nav.nodeY(n) + Combatant.EYE_HEIGHT,
++                nav.cellZ(n) + .5f, x, y + Combatant.EYE_HEIGHT * .85f, z);
++    }
++
++    private boolean withinAnchor(int n, int anchor, float tether) {
++        if (!nav.valid(anchor)) return true;
++        float dx = nav.cellX(n) - nav.cellX(anchor), dz = nav.cellZ(n) - nav.cellZ(anchor);
++        return dx * dx + dz * dz <= tether * tether
++                && Math.abs(nav.nodeY(n) - nav.nodeY(anchor)) < 3f;
++    }
++
++    private int shelterSides(int n) {
++        float x = nav.cellX(n) + .5f, z = nav.cellZ(n) + .5f, y = nav.nodeY(n) + 1f;
++        int result = 0;
++        if (world.solidAt(x + 1.4f, y, z)) result++;
++        if (world.solidAt(x - 1.4f, y, z)) result++;
++        if (world.solidAt(x, y, z + 1.4f)) result++;
++        if (world.solidAt(x, y, z - 1.4f)) result++;
++        return result;
++    }
++
++    public boolean usable(int n) {
++        return nav.valid(n) && world.solid(nav.cellX(n), nav.nodeY(n) - 1, nav.cellZ(n))
++                && !world.boxCollides(nav.cellX(n) + .5f, nav.nodeY(n), nav.cellZ(n) + .5f,
++                Combatant.RADIUS, Combatant.HEIGHT);
++    }
++}
+--- /dev/null
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotRouteMemory.java
+@@ -0,0 +1,66 @@
++package com.ccs.voxelgun.game;
++
++import java.util.Arrays;
++
++/** Small personal, expiring route costs. A failed route never removes a shared navigation node. */
++public final class BotRouteMemory {
++    private static final int CAPACITY = 6;
++    private final int[] nodes = new int[CAPACITY];
++    private final float[] remaining = new float[CAPACITY];
++    private final int[] goals = new int[CAPACITY];
++    private final int[] failures = new int[CAPACITY];
++    private final float[] goalRemaining = new float[CAPACITY];
++
++    public BotRouteMemory() { reset(); }
++
++    public void reset() {
++        Arrays.fill(nodes, -1); Arrays.fill(goals, -1);
++        Arrays.fill(remaining, 0f); Arrays.fill(goalRemaining, 0f); Arrays.fill(failures, 0);
++    }
++
++    public void update(float dt) {
++        for (int i = 0; i < CAPACITY; i++) {
++            remaining[i] = Math.max(0f, remaining[i] - dt);
++            goalRemaining[i] = Math.max(0f, goalRemaining[i] - dt);
++        }
++    }
++
++    public void avoidNode(int node) {
++        if (node < 0) return;
++        int slot = oldest(nodes, remaining, node);
++        nodes[slot] = node; remaining[slot] = 12f;
++    }
++
++    public float cost(int node) {
++        for (int i = 0; i < CAPACITY; i++)
++            if (nodes[i] == node && remaining[i] > 0f) return 18f;
++        return 0f;
++    }
++
++    public void failedGoal(int goal) {
++        if (goal < 0) return;
++        int slot = oldest(goals, goalRemaining, goal);
++        failures[slot] = goals[slot] == goal && goalRemaining[slot] > 0f
++                ? Math.min(4, failures[slot] + 1) : 1;
++        goals[slot] = goal; goalRemaining[slot] = 16f;
++    }
++
++    public int failures(int goal) {
++        for (int i = 0; i < CAPACITY; i++)
++            if (goals[i] == goal && goalRemaining[i] > 0f) return failures[i];
++        return 0;
++    }
++
++    public void reachedGoal(int goal) {
++        for (int i = 0; i < CAPACITY; i++) if (goals[i] == goal) goalRemaining[i] = 0f;
++    }
++
++    private static int oldest(int[] ids, float[] ages, int id) {
++        int oldest = 0;
++        for (int i = 0; i < ids.length; i++) {
++            if (ids[i] == id) return i;
++            if (ages[i] < ages[oldest]) oldest = i;
++        }
++        return oldest;
++    }
++}
+--- a/app/src/main/java/com/ccs/voxelgun/game/BotSwimmingController.java
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotSwimmingController.java
+@@ -25,17 +25,54 @@
+         float dx = targetX - c.position.x, dz = targetZ - c.position.z;
+         if (wet && retry <= 0f) {
+             int surface = Swimming.surface(world, c);
+-            target = findShore(c, world, surface) || findWaterWaypoint(c, world, surface);
++            target = findNearbyExit(c, world, surface) || findShore(c, world, surface)
++                    || findWaterWaypoint(c, world, surface);
+             retry = 1f; // At most one bounded search per second, including failed searches.
+             dx = targetX - c.position.x; dz = targetZ - c.position.z;
+         }
+         float distance = (float)Math.sqrt(dx * dx + dz * dz);
+-        if (target && distance > .05f)
++        boolean wantsMovement = target && distance > .05f;
++        if (wantsMovement)
+             Swimming.steer(c, dx / distance * Swimming.MOVE_SPEED,
+                     dz / distance * Swimming.MOVE_SPEED, dt);
+         else Swimming.steer(c, 0f, 0f, dt);
+         c.crouching = false;
+         return true;
++    }
++
++    /**
++     * A body can touch water only at its edge while standing beside a dry tile, including the
++     * current cell. Under a pier the upward surface route is blocked, but stepping back onto that
++     * tile is clear. Check the actual body-height crossing before planning an above-water exit.
++     */
++    private boolean findNearbyExit(Combatant c, VoxelWorld w, int surface) {
++        if (surface < 1 || c.position.y < surface - 1.25f) return false;
++        int cx = VoxelWorld.floor(c.position.x), cz = VoxelWorld.floor(c.position.z);
++        int highestFeet = Math.min(surface + 1, VoxelWorld.floor(c.position.y + Physics.STEP_HEIGHT));
++        for (int radius = 0; radius <= 2; radius++) {
++            for (int z = cz - radius; z <= cz + radius; z++) {
++                for (int x = cx - radius; x <= cx + radius; x++) {
++                    if (Math.max(Math.abs(x - cx), Math.abs(z - cz)) != radius
++                            || x < 1 || z < 1 || x >= w.sizeX() - 1 || z >= w.sizeZ() - 1) continue;
++                    for (int feet = highestFeet; feet >= Math.max(1, surface - 2); feet--) {
++                        if (!w.solid(x, feet - 1, z)
++                                || w.get(x, feet - 1, z) == Materials.LAVA
++                                || wetColumn(w, x, feet, z)
++                                || w.boxCollides(x + .5f, feet, z + .5f,
++                                        Combatant.RADIUS, Combatant.HEIGHT)) continue;
++                        float crossingY = Math.max(c.position.y, feet);
++                        if (w.boxCollides(c.position.x, crossingY, c.position.z,
++                                Combatant.RADIUS, Combatant.HEIGHT)) continue;
++                        if (clearCrossingAtHeight(w, c.position.x, c.position.z,
++                                x + .5f, z + .5f, surface, feet, crossingY)) {
++                            targetX = x + .5f; targetZ = z + .5f;
++                            return true;
++                        }
++                    }
++                }
++            }
++        }
++        return false;
+     }
+ 
+     /** A distant bank must not leave a swimmer stationary outside the local search radius. */
+@@ -114,12 +151,18 @@
+ 
+     private static boolean clearCrossing(VoxelWorld w, float fromX, float fromZ,
+                                           float toX, float toZ, int surface, int destination) {
++        return clearCrossingAtHeight(w, fromX, fromZ, toX, toZ, surface, destination, surface + 1f);
++    }
++
++    private static boolean clearCrossingAtHeight(VoxelWorld w, float fromX, float fromZ,
++                                                  float toX, float toZ, int surface,
++                                                  int destination, float crossingY) {
+         float dx = toX - fromX, dz = toZ - fromZ;
+         int steps = Math.max(1, (int)Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) * 2));
+         for (int i = 1; i <= steps; i++) {
+             float x = fromX + dx * i / steps, z = fromZ + dz * i / steps;
+             int bx = VoxelWorld.floor(x), bz = VoxelWorld.floor(z);
+-            if (w.boxCollides(x, surface + 1, z, Combatant.RADIUS, Combatant.HEIGHT)) return false;
++            if (w.boxCollides(x, crossingY, z, Combatant.RADIUS, Combatant.HEIGHT)) return false;
+             // Do not "swim" across an empty-sky gap to an unrelated floating island.
+             if (w.get(bx, surface - 1, bz) != Materials.WATER
+                     && !w.solid(bx, destination - 1, bz)
+--- /dev/null
++++ b/app/src/main/java/com/ccs/voxelgun/game/BotTacticalBudget.java
+@@ -0,0 +1,14 @@
++package com.ccs.voxelgun.game;
++
++/** Shared cap for optional position/cover sight queries, separate from essential perception. */
++public final class BotTacticalBudget {
++    private int remaining = 8;
++    private boolean recoveryAvailable = true;
++    public void beginStep(int maximum) { remaining = Math.max(0, maximum); recoveryAvailable = true; }
++    public boolean take() { if (remaining <= 0) return false; remaining--; return true; }
++    public boolean takeRecovery() {
++        if (!recoveryAvailable) return false;
++        recoveryAvailable = false; return true;
++    }
++    public int remaining() { return remaining; }
++}
+--- a/app/src/main/java/com/ccs/voxelgun/game/Match.java
++++ b/app/src/main/java/com/ccs/voxelgun/game/Match.java
+@@ -75,6 +75,11 @@
+     private final Random random;
+     private final List<Combatant> combatants = new ArrayList<>();
+     private final List<BotBrain> brains = new ArrayList<>();
++    private BotDiagnostics botDiagnostics;
++    public void enableBotDiagnostics() { if (botDiagnostics == null) botDiagnostics = new BotDiagnostics(combatants.size()); }
++    public BotDiagnostics botDiagnostics() { return botDiagnostics; }
++    private final BotTacticalBudget tacticalBudget = new BotTacticalBudget();
++    BotTacticalBudget tacticalBudget() { return tacticalBudget; }
+     /** Brain lookup by combatant id; index 0 (the player) is always null. */
+     private BotBrain[] brainById = new BotBrain[1];
+     private final Projectile[] projectiles = new Projectile[MAX_PROJECTILES];
+@@ -578,6 +583,7 @@
+         // Large matches need a little more path throughput, but keep a hard ceiling so one frame
+         // cannot turn into a burst of dozens of A* searches.
+         pathFinder.beginStep(Math.min(10, Math.max(4, combatants.size() / 12)));
++        tacticalBudget.beginStep(isBattlefield() ? 8 : 6);
+ 
+         float oldX = player.position.x, oldY = player.position.y, oldZ = player.position.z;
+         for (int i = 0; i < combatants.size(); i++) configureWeapons(combatants.get(i));
+@@ -601,6 +607,12 @@
+                 updateStance(combatant, combatant.crouching, dt);
+                 updateSteady(combatant, dt);
+                 integrateBody(combatant, dt, true);
++            }
++            if (botDiagnostics != null && combatant.bot) {
++                BotBrain brain = brainFor(combatant);
++                botDiagnostics.sample(combatant, dt, combatActive(),
++                        brain != null && brain.diagnosticWantsMovement(),
++                        brain == null ? BotDiagnostics.NONE : brain.diagnosticHoldReason());
+             }
+             combatant.updateTimers(dt);
+             updateHealthRegeneration(combatant, dt);
+--- a/app/src/main/java/com/ccs/voxelgun/game/ObjectiveBotTactics.java
++++ b/app/src/main/java/com/ccs/voxelgun/game/ObjectiveBotTactics.java
+@@ -12,6 +12,9 @@
+     private final int[] queue = new int[MAX_NODES];
+     private final int[] neighbours = new int[8 * NavGrid.MAX_LEVELS];
+     private final int[] seen;
++    private final int[] finalists = new int[4];
++    private final float[] finalistScores = new float[4];
++    private int lastSightQueries;
+     private int stamp;
+     private int center = -1, revision = -1, count;
+ 
+@@ -26,6 +29,7 @@
+      * roof or a one-way drop cannot become a holding slot merely because it has line of sight.
+      */
+     int slot(int anchor, Combatant bot, float ring, float radius, int facingNode) {
++        lastSightQueries = 0;
+         if (!nav.valid(anchor)) return anchor;
+         collect(anchor);
+         float ax = nav.cellX(anchor) + .5f, az = nav.cellZ(anchor) + .5f;
+@@ -34,16 +38,13 @@
+         float angle = facing + Math.floorMod(bot.id / 2, 8) * (float) Math.PI / 4f;
+         float tx = ax + (float) Math.cos(angle) * ring;
+         float tz = az + (float) Math.sin(angle) * ring;
+-        int best = anchor;
+-        float bestScore = Float.MAX_VALUE;
++        java.util.Arrays.fill(finalists, -1);
++        java.util.Arrays.fill(finalistScores, Float.MAX_VALUE);
+         for (int i = 0; i < count; i++) {
+             int n = queue[i];
+             float x = nav.cellX(n) + .5f, z = nav.cellZ(n) + .5f;
+             float y = nav.nodeY(n), dx = x - ax, dz = z - az;
+-            if (Math.abs(y - nav.nodeY(anchor)) >= 2f || dx * dx + dz * dz >= radius * radius
+-                    || world.boxCollides(x, y, z, Combatant.RADIUS, Combatant.HEIGHT)
+-                    || !world.lineOfSight(ax, nav.nodeY(anchor) + 1f, az,
+-                    x, y + Combatant.EYE_HEIGHT, z)) continue;
++            if (Math.abs(y - nav.nodeY(anchor)) >= 2f || dx * dx + dz * dz >= radius * radius) continue;
+             float score = (x - tx) * (x - tx) + (z - tz) * (z - tz);
+             // Nearby chest-high shelter makes a useful cover/support slot, without requiring
+             // knowledge of an enemy position or assuming that shelter is bulletproof.
+@@ -51,10 +52,30 @@
+                     || world.solid(nav.cellX(n) - 1, nav.nodeY(n) + 1, nav.cellZ(n))
+                     || world.solid(nav.cellX(n), nav.nodeY(n) + 1, nav.cellZ(n) + 1)
+                     || world.solid(nav.cellX(n), nav.nodeY(n) + 1, nav.cellZ(n) - 1)) score -= 1.5f;
+-            if (score < bestScore) { bestScore = score; best = n; }
++            for (int slot = 0; slot < finalists.length; slot++) if (score < finalistScores[slot]) {
++                for (int move = finalists.length - 1; move > slot; move--) {
++                    finalists[move] = finalists[move - 1];
++                    finalistScores[move] = finalistScores[move - 1];
++                }
++                finalists[slot] = n;
++                finalistScores[slot] = score;
++                break;
++            }
+         }
+-        return best;
++        // Geometric ranking is cheap; only four finalists may call the world's collision/sight
++        // queries. Planning an entire squad must not issue hundreds of native rays per actor.
++        for (int n : finalists) {
++            if (n < 0) break;
++            float x = nav.cellX(n) + .5f, z = nav.cellZ(n) + .5f, y = nav.nodeY(n);
++            if (world.boxCollides(x, y, z, Combatant.RADIUS, Combatant.HEIGHT)) continue;
++            lastSightQueries++;
++            if (world.lineOfSight(ax, nav.nodeY(anchor) + 1f, az,
++                    x, y + Combatant.EYE_HEIGHT, z)) return n;
++        }
++        return anchor;
+     }
++
++    int lastSightQueries() { return lastSightQueries; }
+ 
+     private void collect(int anchor) {
+         if (center == anchor && revision == world.revision()) return;
+--- a/app/src/main/java/com/ccs/voxelgun/game/Objectives.java
++++ b/app/src/main/java/com/ccs/voxelgun/game/Objectives.java
+@@ -9,7 +9,16 @@
+ public final class Objectives {
+     public static final float RADIUS = 4f;
+     private final Match match;
+-    private final ObjectiveFormation formation;
++    private final ObjectiveBotTactics tactics;
++    private final int[] assignments, tacticalGoals;
++    private final ObjectiveBotTactics.Role[] roles;
++    private final PathFinder.Path carrierRoute = new PathFinder.Path(8192);
++    private float planningTime;
++    private boolean planned;
++    private int designatedInteractor = -1;
++    private int plannedCarrier = -2;
++    private boolean plannedPlanted;
++    private int plannedRevision = -1;
+     private final List<Integer> sites = new ArrayList<>();
+     private final int[] nodes = new int[3];
+     private final Team[] owners = {Team.NONE, Team.NONE, Team.NONE};
+@@ -33,7 +42,13 @@
+ 
+     public Objectives(Match match) {
+         this.match = match;
+-        formation = new ObjectiveFormation(match.nav(), match.world(), match.combatants().size());
++        tactics = new ObjectiveBotTactics(match.nav(), match.world());
++        int actors = match.combatants().size();
++        assignments = new int[actors];
++        tacticalGoals = new int[actors];
++        roles = new ObjectiveBotTactics.Role[actors];
++        java.util.Arrays.fill(tacticalGoals, -1);
++        for (Combatant c : match.combatants()) assignments[c.id] = Math.floorMod(c.id, 3);
+         PathFinder.Path path = new PathFinder.Path(8192);
+         int chosenBlue = -1, chosenRed = -1;
+         bases: for (SpawnPoint blue : match.map().blueSpawns()) {
+@@ -102,14 +117,16 @@
+     public int base(Team team) { return team == Team.BLUE ? blueBase : redBase; }
+ 
+     public void update(float dt) {
+-        if (match.mode() == GameMode.BOMB_PLANT) { updateBomb(dt); return; }
+-        if (match.mode() == GameMode.CRYSTAL_HEIST) { updateCore(dt); return; }
++        planningTime -= dt;
++        if (match.mode() == GameMode.BOMB_PLANT) { updateBomb(dt); ensurePlan(); return; }
++        if (match.mode() == GameMode.CRYSTAL_HEIST) { updateCore(dt); ensurePlan(); return; }
+         if (match.mode() == GameMode.KING_OF_THE_HILL) {
+             rotation -= dt;
+             if (rotation <= 0f) {
+                 rotation += 60f;
+                 hill = (hill + 1) % sites.size();
+                 nodes[0] = sites.get(hill);
++                planned = false;
+                 owners[0] = Team.NONE;
+                 match.objectiveBanner("HILL MOVED");
+             }
+@@ -135,6 +152,7 @@
+                         && near(c, nodes[i], RADIUS)) c.score += seconds * 5;
+             }
+         }
++        ensurePlan();
+     }
+ 
+     private int occupants(int node, Team team) {
+@@ -155,19 +173,23 @@
+             roundBreak -= dt;
+             if (roundBreak <= 0f) {
+                 planted = false; roundTime = 90f; plantTime = defuseTime = 0f; interacting = -1;
++                designatedInteractor = -1; planned = false;
+                 match.restartObjectiveRound();
+             }
+             return;
+         }
+         roundTime -= dt;
+         int blueAlive = 0, redAlive = 0;
++        ensurePlan();
+         Combatant actor = null;
+         for (Combatant c : match.combatants()) {
+             if (!c.alive) continue;
+             if (c.team == Team.BLUE) blueAlive++; else redAlive++;
+-            if (actor == null && c.team == (planted ? Team.RED : Team.BLUE)
++            if (c.team == (planted ? Team.RED : Team.BLUE)
++                    && (!c.bot || c.id == designatedInteractor)
+                     && near(c, nodes[0], 2.8f) && !c.firing
+-                    && c.velocity.x * c.velocity.x + c.velocity.z * c.velocity.z < 1f) actor = c;
++                    && c.velocity.x * c.velocity.x + c.velocity.z * c.velocity.z < 1f
++                    && (actor == null || !c.bot || c.id == interacting && actor.bot)) actor = c;
+         }
+         if (actor == null || actor.id != interacting) { plantTime = defuseTime = 0f; }
+         interacting = actor == null ? -1 : actor.id;
+@@ -216,26 +238,190 @@
+         }
+     }
+ 
++    /** Tactical planning uses public objective state and allies, never hidden enemy positions. */
++    private void ensurePlan() {
++        Combatant worker = match.combatantById(designatedInteractor);
++        boolean lostWorker = match.mode() == GameMode.BOMB_PLANT && designatedInteractor >= 0
++                && (worker == null || !worker.alive || worker.team != (planted ? Team.RED : Team.BLUE));
++        if (planned && planningTime > 0f && plannedCarrier == carrier
++                && plannedPlanted == planted && !lostWorker) return;
++        planningTime = match.mode() == GameMode.CRYSTAL_HEIST ? .85f : 1.25f;
++        if (plannedCarrier != carrier) carrierRoute.clear();
++        plannedCarrier = carrier;
++        plannedPlanted = planted;
++        planned = true;
++        if (plannedRevision != match.world().revision()) {
++            plannedRevision = match.world().revision();
++            carrierRoute.clear();
++        }
++        if (match.mode() == GameMode.CAPTURE_POINT) planCapture();
++        else if (match.mode() == GameMode.KING_OF_THE_HILL) planHill();
++        else if (match.mode() == GameMode.BOMB_PLANT) planBomb();
++        else planCore();
++    }
++
++    private int enemyBase(Team team) { return team == Team.BLUE ? redBase : blueBase; }
++
++    private void assign(Combatant c, int center, ObjectiveBotTactics.Role role, float ring, float radius) {
++        roles[c.id] = role;
++        tacticalGoals[c.id] = ring > 0f
++                ? tactics.slot(center, c, ring, radius, enemyBase(c.team)) : center;
++    }
++
++    private void planCapture() {
++        for (Team team : new Team[]{Team.BLUE, Team.RED}) {
++            int[] assigned = new int[3];
++            int teamSize = 0;
++            for (Combatant c : match.combatants()) if (c.alive && c.team == team) {
++                if (c.bot) teamSize++;
++                else for (int i = 0; i < 3; i++) if (near(c, nodes[i], RADIUS)) assigned[i]++;
++            }
++            for (Combatant c : match.combatants()) if (c.alive && c.bot && c.team == team) {
++                int point = ObjectiveBotTactics.choosePoint(team, owners, contested, assigned,
++                        assignments[c.id], teamSize);
++                assignments[c.id] = point;
++                assigned[point]++;
++                assign(c, nodes[point], owners[point] == team && !contested[point]
++                        ? ObjectiveBotTactics.Role.DEFEND : ObjectiveBotTactics.Role.CAPTURE,
++                        2.2f, RADIUS);
++            }
++        }
++    }
++
++    private void planHill() {
++        for (Team team : new Team[]{Team.BLUE, Team.RED}) {
++            int index = 0;
++            for (Combatant c : match.combatants()) if (c.alive && c.bot && c.team == team) {
++                boolean support = index++ > 0 && BotCombatStyle.forCombatant(c) != BotCombatStyle.RUSHER;
++                assign(c, nodes[0], support ? ObjectiveBotTactics.Role.HILL_SUPPORT
++                        : ObjectiveBotTactics.Role.HILL_CAPTURE, support ? 3.1f : 1.8f, RADIUS);
++            }
++        }
++    }
++
++    private void planBomb() {
++        Team actingTeam = planted ? Team.RED : Team.BLUE;
++        Combatant current = match.combatantById(interacting);
++        Combatant designated;
++        // Preserve an uninterrupted plant/defuse. Otherwise let the closest teammate take it,
++        // including a human who has already entered the interaction area.
++        if (current != null && current.alive && current.team == actingTeam
++                && !current.firing && near(current, nodes[0], 2.8f)) designated = current;
++        else {
++            float best = Float.MAX_VALUE;
++            designated = null;
++            for (Combatant c : match.combatants()) if (c.alive && c.team == actingTeam) {
++                if (!c.bot && near(c, nodes[0], 2.8f) && !c.firing
++                        && c.velocity.x * c.velocity.x + c.velocity.z * c.velocity.z < 1f) {
++                    designated = c; break;
++                }
++                if (!c.bot) continue;
++                float dx = c.position.x - match.nav().cellX(nodes[0]) - .5f;
++                float dz = c.position.z - match.nav().cellZ(nodes[0]) - .5f;
++                float score = dx * dx + dz * dz;
++                // A small tie margin keeps en-route teammates from swapping jobs each second.
++                if (c.id == designatedInteractor) score *= .8f;
++                if (score < best) { best = score; designated = c; }
++            }
++        }
++        designatedInteractor = designated == null ? -1 : designated.id;
++        for (Combatant c : match.combatants()) if (c.alive && c.bot) {
++            boolean interact = c.id == designatedInteractor;
++            float ring = BotCombatStyle.forCombatant(c) == BotCombatStyle.SNIPER ? 6f : 4.5f;
++            assign(c, nodes[0], interact ? ObjectiveBotTactics.Role.INTERACT
++                    : ObjectiveBotTactics.Role.COVER, interact ? 0f : ring, 7.5f);
++        }
++    }
++
++    private void planCore() {
++        int coreNode = match.nav().nearestNode(core.x, core.y, core.z);
++        if (!match.nav().valid(coreNode)) coreNode = nodes[0];
++        Combatant holder = match.combatantById(carrier);
++        if (holder != null && !holder.alive) holder = null;
++        if (holder == null) carrierRoute.clear();
++        else if (match.pathFinder().canSearch()) {
++            // One shared route supplies all escort/interception waypoints, within the same
++            // per-frame path budget as movement. A refused search is simply retried next plan.
++            match.pathFinder().find(coreNode, base(holder.team), carrierRoute);
++        }
++        int blue = 0, red = 0;
++        for (Combatant c : match.combatants()) if (c.alive && c.bot) {
++            int index = c.team == Team.BLUE ? blue++ : red++;
++            if (holder == null) {
++                // One collector per team reaches pickup distance; the others secure its edge.
++                assign(c, coreNode, index == 0 ? ObjectiveBotTactics.Role.RECOVER
++                        : ObjectiveBotTactics.Role.COVER, index == 0 ? 0f : 3f, 4.5f);
++            } else if (holder.id == c.id) {
++                assign(c, base(c.team), ObjectiveBotTactics.Role.CARRY, 0f, 0f);
++            } else if (holder.team == c.team) {
++                int anchor = index % 2 == 0 ? routeAhead(coreNode, 5) : coreNode;
++                assign(c, anchor, ObjectiveBotTactics.Role.ESCORT, 2.6f, 4f);
++            } else {
++                // The carried core is shown on everyone's HUD. Intercept its route home;
++                // no position of an unmarked opponent is consulted here.
++                int anchor = index == 0 ? coreNode : routeAhead(coreNode, 7 + index % 3 * 4);
++                assign(c, anchor, ObjectiveBotTactics.Role.INTERCEPT, index == 0 ? 0f : 2f, 3.5f);
++            }
++        }
++    }
++
++    private int routeAhead(int fallback, int steps) {
++        if (carrierRoute.length() == 0) return fallback;
++        // A budget-deferred plan may reuse a previous route: skip its already traversed prefix.
++        int nearest = 0;
++        float distance = Float.MAX_VALUE;
++        for (int i = 0; i < carrierRoute.length(); i++) {
++            int n = carrierRoute.node(i);
++            if (!match.nav().valid(n)) continue;
++            float d = nodeDistance(n, fallback);
++            if (d < distance) { distance = d; nearest = i; }
++        }
++        int ahead = carrierRoute.node(Math.min(carrierRoute.length() - 1, nearest + steps));
++        return match.nav().valid(ahead) ? ahead : fallback;
++    }
++
++    /** A designated bot enters the interaction early enough to finish inside the rules radius. */
++    public boolean shouldInteract(Combatant c) {
++        if (match.mode() != GameMode.BOMB_PLANT || roundPaused() || !c.alive || !c.bot) return false;
++        ensurePlan();
++        return c.id == designatedInteractor && near(c, nodes[0], 2.4f);
++    }
++
++    public boolean isInteractor(Combatant c) {
++        if (match.mode() != GameMode.BOMB_PLANT || !c.alive) return false;
++        ensurePlan();
++        return c.id == designatedInteractor;
++    }
++
++    ObjectiveBotTactics.Role roleFor(Combatant c) {
++        ensurePlan();
++        return roles[c.id];
++    }
++
++    int assignedPoint(Combatant c) { ensurePlan(); return assignments[c.id]; }
++
+     private int centerFor(Combatant c) {
+         if (match.mode() == GameMode.CRYSTAL_HEIST) {
+-            if (carrier == c.id) return c.team == Team.BLUE ? blueBase : redBase;
+-            return match.nav().nearestNode(core.x, core.y, core.z);
++            if (carrier == c.id) return base(c.team);
++            int n = match.nav().nearestNode(core.x, core.y, core.z);
++            return match.nav().valid(n) ? n : nodes[0];
+         }
+         if (match.mode() == GameMode.CAPTURE_POINT) {
++            if (c.bot) { ensurePlan(); return nodes[assignments[c.id]]; }
+             for (int offset = 0; offset < 3; offset++) {
+-                int i = (c.id + offset) % 3;
++                int i = Math.floorMod(c.id + offset, 3);
+                 if (owners[i] != c.team || contested[i]) return nodes[i];
+             }
+-            return nodes[c.id % 3];
++            return nodes[Math.floorMod(c.id, 3)];
+         }
+         return nodes[0];
+     }
+ 
+     public int goalFor(Combatant c) {
+-        int center = centerFor(c);
+-        // Bomb interaction and core pickup/delivery keep their exact gameplay destinations.
+-        return match.mode() == GameMode.CAPTURE_POINT || match.mode() == GameMode.KING_OF_THE_HILL
+-                ? formation.forBot(center, c, RADIUS) : center;
++        if (!c.bot) return centerFor(c);
++        ensurePlan();
++        int goal = tacticalGoals[c.id];
++        return match.nav().valid(goal) ? goal : centerFor(c);
+     }
+ 
+     public boolean shouldHold(Combatant c) {
+@@ -243,7 +429,10 @@
+         if (c.bot && (match.mode() == GameMode.CAPTURE_POINT || match.mode() == GameMode.KING_OF_THE_HILL)) {
+             return near(c, centerFor(c), RADIUS) && near(c, goal, .8f);
+         }
+-        return near(c, goal, match.mode() == GameMode.BOMB_PLANT ? 2.1f : 2.6f);
++        if (c.bot && match.mode() == GameMode.BOMB_PLANT) {
++            return isInteractor(c) ? shouldInteract(c) : near(c, goal, .9f);
++        }
++        return near(c, goal, c.bot ? .9f : match.mode() == GameMode.BOMB_PLANT ? 2.1f : 2.6f);
+     }
+ 
+     public void snapshot(HudSnapshot out) {
+--- a/app/src/main/java/com/ccs/voxelgun/game/PathFinder.java
++++ b/app/src/main/java/com/ccs/voxelgun/game/PathFinder.java
+@@ -67,6 +67,10 @@
+     public boolean canSearch() { return budget > 0; }
+ 
+     public boolean find(int startNode, int goalNode, Path out) {
++        return find(startNode, goalNode, out, null);
++    }
++
++    public boolean find(int startNode, int goalNode, Path out, BotRouteMemory memory) {
+         if (budget <= 0) {
+             // Deferred, not failed: the caller may still be following this usable route.
+             return false;
+@@ -112,7 +116,8 @@
+                 } else if (rise < -1) {
+                     step += 0.25f;
+                 }
+-                float tentative = gScore[current] + step;
++                float tentative = gScore[current] + step
++                        + (memory == null || neighbour == goalNode ? 0f : memory.cost(neighbour));
+                 if (tentative >= gScore[neighbour]) {
+                     continue;
+                 }
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -280,12 +280,40 @@
+   contacts or bunny-hop into an assault. Flankers, supporters and defenders preserve their
+   assignments during firefights. Both teams receive the same mix of rifle personalities.
+   Squad planning runs every 1.2 seconds; support and perch selection share a 24-ray budget.
+-  Sound cues are coalesced for 0.8–1.07 seconds, and investigations expire after at most 12 seconds;
+-  hearing never grants sight or interrupts an objective assignment. Footstep hearing uses actual
+-  travelled distance, short posture-dependent radii and difficulty scaling. Ordinary objective
++  `BotHearing` coalesces bursts, attenuates cues by sampled wall thickness/material (at most 48
++  Java voxel reads), and supplies a stable approximate region rather than exact coordinates.
++  Nearby footsteps can override a distant gunshot; investigations expire after at most 12 seconds.
++  Hearing never grants sight or interrupts an objective assignment or an active cover cycle.
++  Footstep hearing uses actual travelled distance, short posture-dependent radii and difficulty scaling. Ordinary objective
+   guards watch a bounded sector toward the opposing base. Collision recovery measures intended
+   movement against 0.9 seconds of positional progress, then tries a short local detour with
+-  support/clearance checks every 0.1 seconds and travel bhop disabled. Intentional holds are exempt.
++  support/clearance checks every 0.1 seconds and travel bhop disabled. Repeated airborne bounces
++  also count as a stall and temporarily suppress jumps. Brief path-budget deferrals preserve
++  the progress window; intentional holds are exempt. If ordinary sidesteps fail, a rare
++  `BotLocalRecovery` fallback simulates at most 24 short two-leg walks with actual collision,
++  accepts only a dry supported landing within a four-block drop, and executes horizontal input
++  through normal physics. Planning is limited to one bot per frame and a three-second retry.
++  Combat approach/strafe and active evasive movement recheck support, avoiding lava/void edges.
++  Hop takeoff checks the full boosted-speed/gravity-dependent flight corridor, cached and capped
++  at 192 half-block samples; ordinary walking remains available when a hop is unsafe.
++  `BotRouteMemory` retains six expiring bad edges/failed goals per bot; A* applies a soft penalty
++  so a unique corridor remains usable. Repeated failures try a nearby alternative approach while
++  preserving the strategic destination. Entering water penalizes the interrupted edge; shore
++  recovery tests nearby dry tiles at actual body height, including exits beneath low overhangs.
++  `BotPositionPlanner` ranks weapon range, shelter, elevation and escape connections before
++  bounded path/sight checks. Local cover/firing queries share a 6-ray arena / 8-ray Battlefield
++  budget per simulation step, separate from perception. Assignment tethers keep position changes
++  near their objective, and Battlefield marksmen retain squad-selected perches.
++  `BotCoverCycle` moves to hidden cover, reloads, reaches a connected exposed firing lane, and
++  returns. The cycle expires after nine seconds, repositions after repeated damage, checks that
++  a peek has a return route, and revalidates destroyed cover. Exposed arrival requires precise
++  positioning and current line of sight before shooting; difficulty changes timings, not knowledge.
++  `ObjectiveBotTactics` balances capture/defense, gives Hill weapons center/support slots inside
++  the scoring radius, reserves one bomb worker plus perimeter support, and routes public-core
++  escorts/interceptors. A worker pauses combat/movement until interaction ends; carriers keep
++  moving home during firefights. Planning is cached for 1.25 seconds (.85 for Crystal), with
++  immediate worker-death/carrier/plant reassignment; each formation query ranks at most 320
++  connected nodes and verifies at most four finalists.
+   Arena weapon families rotate within each team; Battlefield models cycle within each class/team.
+   Headshot-only generated kits omit launchers/frags; mirrored kits remain intact, with bots choosing
+   a usable sidearm. Emergency weapon swaps allow primary reload recovery and downtime maintenance.
+@@ -294,6 +322,21 @@
+   weighted A* over that graph with preallocated arrays and a binary heap.
+ - **Modes** — team deathmatch (kill limit), deathmatch (kill limit), gun game (twelve-step ladder),
+   zombie survival (one life, escalating waves), knife fight (blades only, one hit kills).
++
++### Repeatable bot scenarios
++
++`tools/run-bot-scenarios.sh` compiles the real game simulation for a standalone Java 17+ runtime.
++It runs all 26 maps in their recommended modes plus controls for passive bots, weapon and movement
++modifiers. `--long` expands to two passes across arena modes; `--maps=23,24,25 --long --players=100`
++exercises both Battlefield planners at the maximum population. `--seconds=90`, `--seed=...`,
++`--output=...` and `--strict` customize duration, deterministic seeds, report directory and warning
++handling. The runner writes checkpointed JSON/CSV with per-bot and aggregate movement, intentional
++holds, blocked intent, idle time, continuous spinning, repeated failed goals, recovery and timing.
++`Match.enableBotDiagnostics()` is opt-in; normal matches neither allocate nor sample this telemetry.
++Intent is captured before collision and sampled afterward. Countdown, deaths, respawn teleports,
++Range targets, cover, objective holds and investigation pauses are classified separately. Published
++thresholds flag individuals as well as team averages. Timing covers desktop JVM `Match.update`
++using Java voxel fallbacks, not Android rendering, audio, JNI or measured device frame rate.
+ 
+ ### Weapons are taken in the round, never in the menu
+ 

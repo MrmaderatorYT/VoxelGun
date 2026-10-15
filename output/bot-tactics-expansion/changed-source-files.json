@@ -1,0 +1,87 @@
+[
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotBhopController.java",
+    "change": "modified",
+    "sha256": "bd57e4147cb9950d287b83da8d72672b94abe73f43f32d6d3423f17680a65175"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotBrain.java",
+    "change": "modified",
+    "sha256": "71b72f264092754a598371643dd911d155eb71f14478793d8c9171220a17e9a4"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotCoverCycle.java",
+    "change": "added",
+    "sha256": "b0fb6fd6729d254f73c2a908f8a5d0c99f03d39168a27ccf89744ae816a39e01"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotDiagnostics.java",
+    "change": "added",
+    "sha256": "58e4bf0f0b7210aac9b5f59bb641434ecbd24b8eddbdb9993b7f84fde6a6d30e"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotEvasionController.java",
+    "change": "modified",
+    "sha256": "01d57d5077b78ae6c8938d587255e87c03983b209e2292d81de4d97acd51f653"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotHearing.java",
+    "change": "added",
+    "sha256": "d2adea7f7b4fcdeacd3b681ebed965ae397dd54fa1632d2d9cfd45bf9283d14d"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotLocalRecovery.java",
+    "change": "added",
+    "sha256": "6827c6741b6ed2d6a70c2a0867a9ad2791e60f33d4d28a56c20f2872101dca4c"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotMovementSafety.java",
+    "change": "modified",
+    "sha256": "f8460e3e7d4adf53e549166cab645210d1b2c6538127fe1b31ff7e786512d7e3"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotPositionPlanner.java",
+    "change": "added",
+    "sha256": "75eb5068184aba110911024c8ace66aa8feacd65152ce14210efd9c028cbdd78"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotRouteMemory.java",
+    "change": "added",
+    "sha256": "dcb619f9cd1478c1e31a4a5eb8a6b5cb128954a03ae1782e53541acc7bbbaa53"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotSwimmingController.java",
+    "change": "modified",
+    "sha256": "c60feecd2fc8acf91bf7bcb3c39398bb0b810001f467a6e580e192d9fbf59c1a"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/BotTacticalBudget.java",
+    "change": "added",
+    "sha256": "89ec5a8783e6e3cdb4381fe84008645e5ba789a1bb33f1282ec219ca621bd2e8"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/Match.java",
+    "change": "modified",
+    "sha256": "fb319b097244b3f842f8b004a95cdac9191d041e0b1abe9045d55cf8a4a919c3"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/ObjectiveBotTactics.java",
+    "change": "modified",
+    "sha256": "20c6a54569b9e70229df34991b8145f8101ab431fa2a3ae2916620656e2e48a1"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/Objectives.java",
+    "change": "modified",
+    "sha256": "0238692b74e0477aebe40a40f270b3fd3c2e6caf2298fd177abfa08d9a13382f"
+  },
+  {
+    "path": "app/src/main/java/com/ccs/voxelgun/game/PathFinder.java",
+    "change": "modified",
+    "sha256": "b31757aa5543c7481679b107e91582ce41f06fcb5939d78723a51fbe20673403"
+  },
+  {
+    "path": "ARCHITECTURE.md",
+    "change": "modified",
+    "sha256": "2db4c38e0976c30fae25c3591223ce7a88e4e04654312cc06ccc257d6be257a0"
+  }
+]

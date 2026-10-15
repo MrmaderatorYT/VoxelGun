@@ -1,0 +1,2217 @@
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/AlpineBattlefield.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/AlpineBattlefield.java
+@@ -1,6 +1,7 @@
+ package com.ccs.voxelgun.map.maps;
+ 
+ import com.ccs.voxelgun.map.MapBuilder;
++import com.ccs.voxelgun.map.scenery.DecorRecipes;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /** A single mountain resort valley, graded before buildings, paths or trees are placed. */
+@@ -45,6 +46,18 @@
+             {32, 288}, {62, 267}, {97, 234}, {117, 203}, {93, 178},
+             {62, 158}, {82, 130}, {128, 112}, {160, 96}
+     };
++    // Small, individually placed foothill sites add human scale without flattening the ridges.
++    // x, z, width, depth. Each has a short graded connection to the nearest valley route.
++    private static final int[][] WAYSTATIONS = {
++            {41, 301, 28, 18}, {104, 304, 30, 20},
++            {177, 112, 28, 24}, {266, 118, 29, 21},
++            {342, 247, 26, 22}, {427, 250, 29, 20},
++            {497, 24, 28, 22}, {570, 66, 34, 17},
++            {39, 504, 30, 23}, {99, 528, 32, 24},
++            {182, 494, 29, 18}, {425, 490, 29, 18},
++            {496, 495, 31, 20}, {574, 490, 29, 21}
++    };
++    private static final int[][] WAYSTATION_ROADS = waystationRoads();
+ 
+     private AlpineBattlefield() {}
+ 
+@@ -67,7 +80,9 @@
+         bridge(b, heights, width);
+         lake(b, heights, width);
+         outposts(b);
++        foothillSites(b);
+         plazasAndCover(b);
++        mountainRoadEdges(b, heights, width);
+         forest(b, heights, width, depth);
+         b.boundary(3, 10, Materials.STONE);
+     }
+@@ -137,6 +152,11 @@
+         for (int[] site : BUILDING_PADS) {
+             if (x >= site[0] && x <= site[2] && z >= site[1] && z <= site[3]) return true;
+         }
++        for (int[] site : WAYSTATIONS) {
++            if (x >= site[0] - 3 && x <= site[0] + site[2] + 2
++                    && z >= site[1] - 3 && z <= site[1] + site[3] + 2) return true;
++        }
++        if (siteAccess(x, z)) return true;
+         if (Math.abs(x - 379) <= 4 && z >= 288 && z <= 329) return true;
+         if (x >= 320 && x <= 351 && Math.abs(z - 345) <= 4) return true;
+         // A narrow lane links the village front doors to the main valley route.
+@@ -158,6 +178,7 @@
+         if (pathDistance(x, z, WEST_TRAIL) <= 3) material = Materials.DIRT;
+         if (pathDistance(x, z, SKI_TRAIL) <= 5) material = Materials.SNOW;
+         if (pathDistance(x, z, VILLAGE_WALK) <= 4) material = Materials.CONCRETE;
++        if (siteAccess(x, z)) material = Materials.STONE_LIGHT;
+         if (sq((x - 250) / 23.0) + sq((z - 207) / 15.0) < 1) material = Materials.CONCRETE;
+         // Only the main valley avenue and the station approach are paved. Their shoulders
+         // meander while the central navigation corridor stays open for vehicles and infantry.
+@@ -410,6 +431,108 @@
+         b.crate(364, b.world().standableLevel(364, 317, 3, 2), 317, 4, Materials.CRATE, Materials.WOOD_DARK);
+     }
+ 
++    private static void foothillSites(MapBuilder b) {
++        String[] names = {"TRAIL CAFE", "RESCUE", "SKI RENTAL", "GUIDE HOUSE",
++                "RANGER", "BRIDGE STORE", "NORTH LODGE", "SERVICE",
++                "TIMBER", "PINE CABINS", "TRAIL STORE", "LAKE CAFE", "SKI PATROL", "EAST LODGE"};
++        int[] walls = {Materials.PLASTER, Materials.WOOD_LIGHT, Materials.BRICK_TAN,
++                Materials.WOOD_DARK};
++        int[] colors = {Materials.TRIM_RED, Materials.TRIM_BLUE, Materials.ROOF_TEAL};
++        for (int i = 0; i < WAYSTATIONS.length; i++) {
++            int[] site = WAYSTATIONS[i];
++            int x = site[0], z = site[1], w = site[2], d = site[3];
++            int color = colors[i % colors.length];
++            // Chalet, open equipment shelter and shop silhouettes alternate within each hamlet.
++            if (i == 6 || i == 8 || i == 13) {
++                b.slab(x, z, x + w - 1, z + d - 1, 2, Materials.CONCRETE);
++                b.fill(x, 3, z + d - 2, x + w - 1, 7, z + d - 1, Materials.WOOD);
++                for (int px : new int[]{x, x + w - 1}) for (int pz : new int[]{z, z + d - 1})
++                    b.fill(px, 3, pz, px, 10, pz, Materials.WOOD_DARK);
++                gable(b, x - 2, z - 2, x + w + 1, z + d + 1, 11, color, false);
++                b.crate(x + 3, 3, z + d - 7, 4, Materials.CRATE, Materials.WOOD_DARK);
++                b.fill(x + w - 10, 3, z + d - 7, x + w - 4, 5, z + d - 4, Materials.WOOD);
++                b.doorway(x + w / 2, 3, z + d - 1, 1, 7, 6);
++                b.clear(x + w / 2 - 3, 3, z + d - 2, x + w / 2 + 3, 8, z + d);
++            } else {
++                if ((i & 1) == 0) chalet(b, x, z, w, d, walls[i % walls.length], color);
++                else shop(b, x, z, w, d, walls[i % walls.length], color);
++                b.doorway(x, 3, z + d / 2, 0, 5, 5);
++                b.doorway(x + w - 1, 3, z + d / 2, 0, 5, 5);
++            }
++            float pixel = Math.min(.34f, (w - 5f) / (names[i].length() * 4 + 1));
++            DecorRecipes.sign(b.scenery(), x + 2, 8.4f, z - .16f, names[i], pixel, color);
++            // Timber shutters and compact awnings give the white/timber façades clear accents.
++            b.fill(x + 2, 4, z - 1, x + 2, 7, z - 1, color);
++            b.fill(x + w - 3, 4, z - 1, x + w - 3, 7, z - 1, color);
++            DecorRecipes.awning(b.scenery(), x + w / 2f - 5, 8, z - 2, 10, color);
++        }
++        b.scenery().landmark("Rescue Hamlet", 119, 314, 34);
++        b.scenery().landmark("Rental Lane", 192, 124, 30);
++        b.scenery().landmark("Timber Yard", 54, 515, 31);
++        b.scenery().landmark("East Lodge", 587, 503, 34);
++    }
++
++    /** Short axes, computed from authored sites, are included before the terrain is graded. */
++    private static boolean siteAccess(int x, int z) {
++        for (int[] road : WAYSTATION_ROADS) {
++            if (x >= road[0] && x <= road[2] && z >= road[1] && z <= road[3]) return true;
++        }
++        return false;
++    }
++
++    private static int[][] waystationRoads() {
++        int[][] roads = new int[WAYSTATIONS.length][4];
++        int[] avenues = {16, 160, 320, 480, 623};
++        for (int i = 0; i < WAYSTATIONS.length; i++) {
++            int[] site = WAYSTATIONS[i];
++            int cx = site[0] + site[2] / 2, cz = site[1] + site[3] / 2;
++            int routeX = 16, routeZ = 96;
++            for (int candidate : avenues)
++                if (Math.abs(cx - candidate) < Math.abs(cx - routeX)) routeX = candidate;
++            for (int candidate : ROUTE_Z)
++                if (Math.abs(cz - candidate) < Math.abs(cz - routeZ)) routeZ = candidate;
++            if (Math.abs(cx - routeX) < Math.abs(cz - routeZ)) {
++                roads[i] = new int[]{Math.min(cx, routeX), cz - 3, Math.max(cx, routeX), cz + 3};
++            } else roads[i] = new int[]{cx - 3, Math.min(cz, routeZ), cx + 3, Math.max(cz, routeZ)};
++        }
++        return roads;
++    }
++
++    private static void mountainRoadEdges(MapBuilder b, int[] heights, int width) {
++        // Deliberate staggered avalanche screens step with the land. They are never trench walls.
++        int[][] screens = {{146, 33, 0, 18}, {174, 58, 0, 18}, {147, 170, 0, 22},
++                {173, 223, 0, 19}, {147, 360, 0, 23}, {174, 413, 0, 20}, {148, 531, 0, 19},
++                {305, 42, 0, 22}, {332, 169, 0, 21}, {306, 225, 0, 18},
++                {332, 382, 0, 20}, {304, 416, 0, 20}, {333, 519, 0, 24},
++                {466, 48, 0, 19}, {494, 164, 0, 20}, {465, 241, 0, 18},
++                {493, 331, 0, 20}, {467, 373, 0, 17}, {494, 449, 0, 18},
++                {48, 82, 1, 24}, {102, 109, 1, 24}, {229, 82, 1, 22}, {532, 81, 1, 21},
++                {59, 274, 1, 21}, {227, 302, 1, 25}, {349, 275, 1, 19}, {561, 275, 1, 22},
++                {73, 466, 1, 20}, {227, 466, 1, 21}, {361, 494, 1, 22}, {542, 468, 1, 22}};
++        for (int[] p : screens) {
++            for (int i = 0; i < p[3]; i++) {
++                if (i >= p[3] / 2 - 2 && i <= p[3] / 2 + 2) continue;
++                int x = p[0] + (p[2] == 1 ? i : 0), z = p[1] + (p[2] == 0 ? i : 0);
++                if (reservedTree(x, z, width)) continue;
++                int base = heights[x + width * z] + 1;
++                b.fill(x, base, z, x, base + 2, z, Materials.WOOD_DARK);
++                b.set(x, base + 3, z, Materials.SNOW);
++            }
++        }
++        // Rock groups are compact shoulder cover and retain the contour surface beneath them.
++        for (int[] rock : new int[][]{{41, 211}, {123, 153}, {189, 274}, {295, 310},
++                {342, 115}, {452, 315}, {505, 234}, {597, 305}, {337, 456}, {611, 435}}) {
++            int x = rock[0], z = rock[1];
++            if (reservedTree(x, z, width)) continue;
++            for (int dx = 0; dx < 7; dx++) for (int dz = 0; dz < 5; dz++) {
++                if (reservedTree(x + dx, z + dz, width)) continue;
++                int base = heights[x + dx + width * (z + dz)] + 1;
++                int high = dx > 1 && dx < 5 && dz > 0 && dz < 4 ? 3 : 1;
++                b.fill(x + dx, base, z + dz, x + dx, base + high, z + dz, Materials.CONCRETE_DARK);
++            }
++        }
++    }
++
+     private static void planter(MapBuilder b, int x, int z, int width, int depth) {
+         b.fill(x, 3, z, x + width - 1, 3, z + depth - 1, Materials.WOOD_DARK);
+         b.fill(x + 1, 4, z + 1, x + width - 2, 4, z + depth - 2, Materials.LEAVES);
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/CandyCastle.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/CandyCastle.java
+@@ -3,6 +3,7 @@
+ import com.ccs.voxelgun.map.GameMap;
+ import com.ccs.voxelgun.map.MapBuilder;
+ import com.ccs.voxelgun.map.MapEnvironment;
++import com.ccs.voxelgun.map.scenery.ClassicArenaDressing;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /**
+@@ -43,6 +44,8 @@
+         keep(b);
+         courtyard(b);
+         approach(b);
++
++        ClassicArenaDressing.geometry(b, id());
+ 
+         blueSpawn(16, 60, 90);
+         blueSpawn(16, 68, 90);
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/CityBattlefield.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/CityBattlefield.java
+@@ -1,6 +1,7 @@
+ package com.ccs.voxelgun.map.maps;
+ 
+ import com.ccs.voxelgun.map.MapBuilder;
++import com.ccs.voxelgun.map.scenery.DecorRecipes;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /** One authored city, with neighbourhoods and looping routes instead of copied city tiles. */
+@@ -27,6 +28,8 @@
+         transitQuarter(b);
+         park(b);
+         southernNeighbourhoods(b);
++        inhabitedBlocks(b);
++        avenueEdges(b);
+         streetFurniture(b);
+         // Authoring never depends on a repeated district or on a later generic combat stencil.
+         // These wide, level cores also connect the five capture circles and both deployments.
+@@ -85,8 +88,8 @@
+         planter(b, 123, 186, 5, 12, Materials.SUNNY);
+         broadTree(b, 112, 205, 10, 4);
+         broadTree(b, 78, 33, 8, 4);
+-        broadTree(b, 133, 70, 10, 4);
+-        broadTree(b, 41, 165, 9, 3);
++        broadTree(b, 77, 66, 10, 4);
++        broadTree(b, 73, 162, 9, 3);
+         broadTree(b, 77, 245, 10, 4);
+         // The west capture point has its own market stalls, with approaches between them.
+         stall(b, 104, 269, Materials.TRIM_RED);
+@@ -182,7 +185,7 @@
+         apartment(b, 552, 111, 44, 30, 3, Materials.BRICK_WHITE,
+                 Materials.BRICK_WHITE_ALT, Materials.TRIM_RED);
+         broadTree(b, 402, 80, 12, 5);
+-        broadTree(b, 505, 119, 10, 4);
++        broadTree(b, 537, 175, 10, 4);
+         broadTree(b, 589, 182, 11, 4);
+         broadTree(b, 432, 242, 11, 5);
+         broadTree(b, 454, 209, 9, 4);
+@@ -390,6 +393,117 @@
+         }
+     }
+ 
++    /** Secondary streets have addresses, service yards and cover between the major landmarks. */
++    private static void inhabitedBlocks(MapBuilder b) {
++        // Old-town lanes bend between compact, bright frontages instead of opening onto lawn.
++        namedShop(b, 97, 63, 38, 18, Materials.BRICK_TEAL, Materials.BRICK_TEAL_ALT,
++                Materials.SUNNY, "RECORDS");
++        namedShop(b, 37, 156, 27, 22, Materials.BRICK_WHITE, Materials.BRICK_WHITE_ALT,
++                Materials.TRIM_RED, "POST");
++        namedShop(b, 38, 235, 29, 26, Materials.BRICK_ORANGE, Materials.BRICK_ORANGE_ALT,
++                Materials.ROOF_TEAL, "WORKSHOP");
++        courtyardWall(b, 90, 129, 1, 24, Materials.BRICK_TAN);
++        courtyardWall(b, 93, 230, 1, 23, Materials.BRICK_WHITE);
++        car(b, 102, 174, Materials.CORAL, false);
++
++        // A low post office and hotel flank the transit forecourt; their interiors are shortcuts.
++        namedShop(b, 39, 311, 38, 22, Materials.BRICK_TAN, Materials.BRICK_TAN_ALT,
++                Materials.TRIM_RED, "PARCELS");
++        apartment(b, 95, 319, 39, 24, 2, Materials.BRICK_ORANGE,
++                Materials.BRICK_ORANGE_ALT, Materials.ROOF_TEAL);
++        namedShop(b, 184, 313, 45, 22, Materials.BRICK_WHITE, Materials.BRICK_WHITE_ALT,
++                Materials.TRIM_BLUE, "PRINT WORKS");
++        b.slab(183, 382, 232, 400, G - 1, Materials.ASPHALT);
++        car(b, 188, 388, Materials.SUNNY, false);
++        car(b, 214, 388, Materials.CORAL, false);
++        courtyardWall(b, 233, 349, 1, 35, Materials.BRICK_TEAL);
++        namedShop(b, 266, 447, 33, 17, Materials.BRICK_BURGUNDY,
++                Materials.BRICK_BURGUNDY_ALT, Materials.SUNNY, "RADIO");
++
++        // Back streets north of the civic circle have their own compact service blocks.
++        namedShop(b, 389, 18, 21, 31, Materials.BRICK_WHITE,
++                Materials.BRICK_WHITE_ALT, Materials.TRIM_RED, "STUDIO");
++        namedShop(b, 348, 72, 39, 10, Materials.BRICK_TEAL,
++                Materials.BRICK_TEAL_ALT, Materials.SUNNY, "NEWS");
++        namedShop(b, 415, 171, 43, 23, Materials.BRICK_BURGUNDY,
++                Materials.BRICK_BURGUNDY_ALT, Materials.ROOF_TEAL, "COFFEE");
++        namedShop(b, 413, 251, 45, 22, Materials.BRICK_WHITE,
++                Materials.BRICK_WHITE_ALT, Materials.TRIM_RED, "CINEMA");
++        path(b, 414, 235, 464, 235, 4, Materials.STONE_LIGHT, Materials.CONCRETE);
++        courtyardWall(b, 412, 206, 1, 22, Materials.BRICK_TAN);
++        car(b, 436, 223, Materials.TRIM_BLUE, false);
++        b.crate(443, G, 199, 4, Materials.CRATE, Materials.WOOD_DARK);
++
++        // Fire-station district: garage doors, a small diner, a loading court and housing.
++        namedShop(b, 553, 13, 54, 16, Materials.BRICK_TAN,
++                Materials.BRICK_TAN_ALT, Materials.TRIM_BLUE, "NORTH GARAGE");
++        namedShop(b, 498, 111, 39, 28, Materials.BRICK_ORANGE,
++                Materials.BRICK_ORANGE_ALT, Materials.ROOF_TEAL, "DINER");
++        namedShop(b, 500, 248, 40, 23, Materials.BRICK_TEAL,
++                Materials.BRICK_TEAL_ALT, Materials.SUNNY, "HARDWARE");
++        namedShop(b, 557, 251, 45, 20, Materials.BRICK_WHITE,
++                Materials.BRICK_WHITE_ALT, Materials.TRIM_BLUE, "AUTO PARTS");
++        courtyardWall(b, 605, 180, 1, 51, Materials.BRICK_BURGUNDY);
++        car(b, 586, 160, Materials.SUNNY, true);
++        b.crate(596, G, 205, 4, Materials.CRATE, Materials.WOOD_DARK);
++
++        // Garden and sport districts remain green, with edge structures and broken garden walls.
++        namedShop(b, 36, 549, 44, 18, Materials.BRICK_WHITE,
++                Materials.BRICK_WHITE_ALT, Materials.ROOF_TEAL, "SERVICE");
++        namedShop(b, 94, 550, 42, 17, Materials.BRICK_BURGUNDY,
++                Materials.BRICK_BURGUNDY_ALT, Materials.SUNNY, "STORAGE");
++        namedShop(b, 184, 550, 43, 17, Materials.BRICK_TAN,
++                Materials.BRICK_TAN_ALT, Materials.TRIM_BLUE, "BAKERY DEPOT");
++        courtyardWall(b, 351, 553, 38, 1, Materials.BRICK_TAN);
++        courtyardWall(b, 404, 553, 40, 1, Materials.BRICK_TAN);
++        courtyardWall(b, 501, 549, 24, 1, Materials.BRICK_WHITE);
++        courtyardWall(b, 541, 550, 24, 1, Materials.BRICK_WHITE);
++        courtyardWall(b, 435, 364, 1, 23, Materials.STONE_LIGHT);
++        courtyardWall(b, 457, 433, 1, 15, Materials.STONE_LIGHT);
++        courtyardWall(b, 586, 380, 1, 21, Materials.STONE_LIGHT);
++        planter(b, 354, 444, 18, 4, Materials.CORAL);
++        planter(b, 508, 430, 15, 4, Materials.SUNNY);
++    }
++
++    private static void namedShop(MapBuilder b, int x, int z, int width, int depth,
++                                  int brick, int alt, int trim, String name) {
++        b.slab(x - 2, z - 3, x + width + 1, z + depth + 2, G - 1, Materials.CONCRETE);
++        shop(b, x, z, width, depth, brick, alt, trim, false);
++        // A roof lip and contrasting corner piers give simple geometry a strong silhouette.
++        b.walls(x, G + 9, z, x + width - 1, G + 9, z + depth - 1, brick);
++        b.quoins(x, z, x + width - 1, z + depth - 1, G, G + 6, Materials.PLASTER);
++        float pixel = Math.min(.35f, (width - 5f) / (name.length() * 4 + 1));
++        DecorRecipes.sign(b.scenery(), x + 2, G + 5.4f, z - .16f, name, pixel, trim);
++        DecorRecipes.awning(b.scenery(), x + 2, G + 4.7f, z - 1.9f, width - 4, trim);
++    }
++
++    private static void courtyardWall(MapBuilder b, int x, int z, int width, int depth, int brick) {
++        b.fill(x, G, z, x + width - 1, G + 2, z + depth - 1, brick);
++        b.slab(x, z, x + width - 1, z + depth - 1, G + 3, Materials.PLASTER);
++        // Each run has one wide cut-through; the ends can also be flanked.
++        if (width > depth) b.clear(x + width / 2 - 2, G, z,
++                x + width / 2 + 2, G + 4, z + depth - 1);
++        else b.clear(x, G, z + depth / 2 - 2,
++                x + width - 1, G + 4, z + depth / 2 + 2);
++    }
++
++    private static void avenueEdges(MapBuilder b) {
++        // Road shoulders form short combat pockets; the broad central carriageways stay clear.
++        int[][] pockets = {{146, 38}, {170, 166}, {146, 223}, {171, 399}, {146, 431},
++                {305, 39}, {330, 165}, {305, 198}, {330, 376}, {305, 524},
++                {466, 36}, {490, 190}, {466, 229}, {490, 351}, {465, 516},
++                {28, 112}, {27, 214}, {603, 66}, {603, 398}, {29, 452}, {602, 541}};
++        for (int i = 0; i < pockets.length; i++) {
++            int x = pockets[i][0], z = pockets[i][1];
++            courtyardWall(b, x, z, 2, 16, i % 2 == 0 ? Materials.BRICK_TAN : Materials.BRICK_TEAL);
++            planter(b, x + 3, z + 2, 4, 6, i % 3 == 0 ? Materials.SUNNY : Materials.CORAL);
++        }
++        for (int[] p : new int[][]{{206, 83}, {402, 83}, {584, 106}, {65, 267},
++                {213, 298}, {428, 275}, {535, 300}, {70, 457}, {224, 491}, {562, 456}}) {
++            car(b, p[0], p[1], (p[0] & 1) == 0 ? Materials.PAINT_BLUE : Materials.CORAL, false);
++        }
++    }
++
+     private static void keepRoutesOpen(MapBuilder b) {
+         for (int x : AVENUES) {
+             b.slab(x - 3, 4, x + 3, D - 5, G - 1, Materials.ASPHALT);
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/DustYard.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/DustYard.java
+@@ -4,6 +4,7 @@
+ import com.ccs.voxelgun.map.CombatLayout;
+ import com.ccs.voxelgun.map.MapBuilder;
+ import com.ccs.voxelgun.map.MapEnvironment;
++import com.ccs.voxelgun.map.scenery.ClassicArenaDressing;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /**
+@@ -38,7 +39,8 @@
+     protected void generate(MapBuilder b) {
+         b.ground(Materials.SAND, Materials.SANDSTONE, 0.14f);
+         b.speckle(0, G - 1, 0, SIZE_X - 1, G - 1, SIZE_Z - 1, Materials.SAND, Materials.DIRT, 0.08f);
+-        b.boundary(4, 18, Materials.BRICK_TAN, Materials.BRICK_TAN_ALT, Materials.TRIM_RED);
++        // Lower enclosing walls let the new bazaar rooflines read against the sky.
++        b.boundary(4, 11, Materials.BRICK_TAN, Materials.BRICK_TAN_ALT, Materials.TRIM_RED);
+ 
+         for (int side = 0; side < 2; side++) {
+             base(b, side);
+@@ -50,6 +52,8 @@
+         combatRoutes(b);
+ 
+         // Kept clear of the interior staircase, which climbs x 20..24 / z 58..61.
++        ClassicArenaDressing.geometry(b, id());
++
+         blueSpawn(16, 58, 90);
+         blueSpawn(16, 64, 90);
+         blueSpawn(16, 70, 90);
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/ExpansionArena.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/ExpansionArena.java
+@@ -4,6 +4,7 @@
+ import com.ccs.voxelgun.map.GameMap;
+ import com.ccs.voxelgun.map.MapBuilder;
+ import com.ccs.voxelgun.map.MapEnvironment;
++import com.ccs.voxelgun.map.scenery.ExpansionDressing;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /** Fifteen compact arenas with distinct routes, landmarks, palettes and combat ranges. */
+@@ -91,7 +92,8 @@
+     protected void generate(MapBuilder b) {
+         int floor = floorMaterial();
+         int accent = accentMaterial();
+-        b.ground(floor, accent, 0.10f);
++        // Broad, quiet surfaces let the coloured architecture and combat silhouettes read.
++        b.ground(floor, accent, 0.025f);
+         addBoundary(b);
+ 
+         switch (layout) {
+@@ -112,6 +114,7 @@
+             default -> bunkerThirteen(b);
+         }
+ 
++        ExpansionDressing.buildArchitecture(b, layout);
+         addSafeSpawns(b, floor);
+     }
+ 
+@@ -250,7 +253,7 @@
+     }
+ 
+     private void canyonOutpost(MapBuilder b) {
+-        b.speckle(6, G - 1, 6, 121, G - 1, 121, Materials.SAND, Materials.DIRT, 0.12f);
++        b.speckle(6, G - 1, 6, 121, G - 1, 121, Materials.SAND, Materials.DIRT, 0.025f);
+         for (int z = 12; z <= 104; z += 23) {
+             b.fill(34, G, z, 40, G + 7 + z % 4, z + 12, Materials.SANDSTONE);
+             b.fill(88, G, 116 - z, 94, G + 8 + z % 3, 128 - z, Materials.SANDSTONE);
+@@ -286,7 +289,9 @@
+     }
+ 
+     private void reactorCore(MapBuilder b) {
+-        b.checker(20, 20, 108, 108, G - 1, Materials.TILE_DARK, Materials.CONCRETE_DARK, 8);
++        b.fill(20, G - 1, 20, 108, G - 1, 108, Materials.CONCRETE_DARK);
++        b.fill(22, G - 1, 43, 106, G - 1, 47, Materials.PANEL_SEAM);
++        b.fill(22, G - 1, 81, 106, G - 1, 85, Materials.PANEL_SEAM);
+         for (int[] room : new int[][]{{32, 24}, {74, 86}}) {
+             b.walls(room[0], G, room[1], room[0] + 18, G + 7, room[1] + 16,
+                     Materials.CONCRETE);
+@@ -424,7 +429,9 @@
+     }
+ 
+     private void orbitalDock(MapBuilder b) {
+-        b.checker(8, 8, 119, 119, G - 1, Materials.TILE_DARK, Materials.CONCRETE_DARK, 10);
++        b.fill(8, G - 1, 8, 119, G - 1, 119, Materials.CONCRETE_DARK);
++        b.fill(8, G - 1, 36, 119, G - 1, 48, Materials.PANEL_SEAM);
++        b.fill(8, G - 1, 78, 119, G - 1, 90, Materials.PANEL_SEAM);
+         for (int[] hangar : new int[][]{{30, 18}, {76, 18}, {30, 92}, {76, 92}}) {
+             b.walls(hangar[0], G, hangar[1], hangar[0] + 22, G + 8, hangar[1] + 16,
+                     Materials.PANEL_GREY);
+@@ -508,7 +515,7 @@
+ 
+     private void volcanoForge(MapBuilder b) {
+         b.speckle(6, G - 1, 6, 121, G - 1, 121, Materials.STONE,
+-                Materials.CONCRETE_DARK, 0.18f);
++                Materials.CONCRETE_DARK, 0.035f);
+         lavaChannel(b, 35);
+         lavaChannel(b, 91);
+ 
+@@ -692,6 +699,9 @@
+         b.fill(x0, G - 1, 47, x1, G - 1, 81, floor);
+         b.clear(x0, G, 47, x1, G + 5, 81);
+         b.fill(x0, G - 1, 62, x1, G - 1, 66, accent);
++        // Spawn courts are usable rooms with a sheltered back, furniture and low islands.
++        // The islands fit strictly between the 5x5 spawn pads; all three exits stay open.
++        ExpansionDressing.spawnCourt(b, layout, x0, x1, accent);
+     }
+ 
+     private void safePoint(MapBuilder b, int x, int z, int floor, int accent) {
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/Facility.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/Facility.java
+@@ -3,6 +3,7 @@
+ import com.ccs.voxelgun.map.GameMap;
+ import com.ccs.voxelgun.map.MapBuilder;
+ import com.ccs.voxelgun.map.MapEnvironment;
++import com.ccs.voxelgun.map.scenery.ClassicArenaDressing;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /**
+@@ -56,6 +57,8 @@
+         reactor(b);
+         combatRoutes(b);
+         lighting(b);
++
++        ClassicArenaDressing.geometry(b, id());
+ 
+         blueSpawn(20, 20, 135);
+         blueSpawn(26, 18, 135);
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/FarmlandBattlefield.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/FarmlandBattlefield.java
+@@ -29,6 +29,8 @@
+         workingFarm(b);
+         millMeadow(b);
+         riversidePark(b);
++        farmsteads(b);
++        fieldCover(b);
+         lanesAndCrossings(b);
+         roadsideCover(b);
+         callouts(b);
+@@ -400,7 +402,134 @@
+         b.fill(603, G, 295, 605, G + 4, 312, Materials.STONE);
+         b.fill(594, G, 263, 596, G + 4, 279, Materials.WOOD_DARK);
+         b.tree(41, G, 242, 9);
+-        b.tree(599, G, 332, 10);
++        b.tree(608, G, 346, 10);
++    }
++
++    /** Productive farmyards occupy the gaps; large crop fields remain visible between them. */
++    private static void farmsteads(MapBuilder b) {
++        // The village now has a packing lane, repair yard and cottages facing the main market.
++        farmBuilding(b, 176, 113, 29, 34, Materials.BRICK_TAN, Materials.BRICK_TAN_ALT,
++                Materials.TRIM_RED, "PACKING");
++        farmBuilding(b, 276, 116, 30, 38, Materials.BRICK_WHITE, Materials.BRICK_WHITE_ALT,
++                Materials.ROOF_BLUE, "REPAIRS");
++        path(b, 178, 160, 306, 160, 4, Materials.DIRT);
++        tractor(b, 186, 161, Materials.PAINT_RED);
++        b.crate(291, G, 166, 5, Materials.CRATE, Materials.WOOD_DARK);
++        hay(b, 178, 53, 7, 3, 13);
++        canopy(b, 186, 19, 22, 16, 6, Materials.ROOF_TEAL);
++        hay(b, 189, 23, 7, 4, 8);
++        farmBuilding(b, 447, 24, 23, 32, Materials.BRICK_BURGUNDY,
++                Materials.BRICK_BURGUNDY_ALT, Materials.ROOF_TILE, "APIARY");
++        path(b, 458, 57, 480, 73, 3, Materials.DIRT);
++        for (int z : new int[]{18, 65, 77}) {
++            b.fill(449, G, z, 453, G + 2, z + 3, Materials.SUNNY);
++            b.slab(448, z - 1, 454, z + 4, G + 3, Materials.ROOF_TEAL);
++        }
++
++        // The eastern complex expands into connected equipment and timber yards.
++        farmBuilding(b, 572, 109, 32, 24, Materials.BRICK_WHITE,
++                Materials.BRICK_WHITE_ALT, Materials.TRIM_RED, "FEED STORE");
++        farmBuilding(b, 497, 305, 29, 23, Materials.BRICK_TAN,
++                Materials.BRICK_TAN_ALT, Materials.ROOF_TILE, "WORKSHOP");
++        canopy(b, 569, 311, 34, 24, 9, Materials.ROOF_BLUE);
++        b.fill(569, G, 333, 602, G + 4, 334, Materials.WOOD);
++        tractor(b, 578, 316, Materials.PAINT_BLUE);
++        hay(b, 594, 316, 6, 4, 9);
++        farmBuilding(b, 578, 374, 29, 27, Materials.BRICK_BURGUNDY,
++                Materials.BRICK_BURGUNDY_ALT, Materials.ROOF_TEAL, "MILL STORE");
++        path(b, 577, 344, 587, 373, 4, Materials.DIRT);
++        path(b, 570, 406, 609, 406, 4, Materials.DIRT);
++        tractor(b, 588, 431, Materials.PAINT_RED);
++        canopy(b, 572, 502, 33, 22, 7, Materials.ROOF_TEAL);
++        hay(b, 576, 506, 8, 3, 9);
++        hay(b, 592, 510, 9, 4, 7);
++
++        // Field buildings sit on headlands and break long crossings into recognisable stages.
++        farmBuilding(b, 38, 391, 35, 24, Materials.BRICK_TAN,
++                Materials.BRICK_TAN_ALT, Materials.ROOF_BLUE, "FIELD HOUSE");
++        path(b, 54, 416, 94, 436, 4, Materials.DIRT);
++        tractor(b, 82, 373, Materials.PAINT_RED);
++        farmBuilding(b, 101, 508, 32, 33, Materials.BRICK_WHITE,
++                Materials.BRICK_WHITE_ALT, Materials.ROOF_TILE, "WOOL STORE");
++        canopy(b, 35, 534, 28, 18, 7, Materials.ROOF_TEAL);
++        hay(b, 38, 538, 8, 3, 9);
++        farmBuilding(b, 187, 344, 30, 25, Materials.BRICK_BURGUNDY,
++                Materials.BRICK_BURGUNDY_ALT, Materials.ROOF_TEAL, "SEED HOUSE");
++        farmBuilding(b, 258, 366, 37, 24, Materials.BRICK_WHITE,
++                Materials.BRICK_WHITE_ALT, Materials.ROOF_TILE, "TOOL SHED");
++        b.slab(262, 393, 296, 407, G - 1, Materials.DIRT);
++        tractor(b, 276, 396, Materials.PAINT_BLUE);
++        // A ruined open barn offers a fast through-route between the two southern crop fields.
++        b.slab(186, 433, 223, 463, G - 1, Materials.DIRT);
++        b.fill(188, G, 435, 221, G + 5, 436, Materials.BRICK_TAN);
++        b.fill(188, G, 435, 189, G + 4, 461, Materials.BRICK_TAN);
++        b.fill(220, G, 450, 221, G + 3, 461, Materials.BRICK_TAN);
++        b.doorway(204, G, 435, 1, 9, 7);
++        b.doorway(188, G, 449, 0, 7, 6);
++        b.clear(200, G, 435, 208, G + 6, 436);
++        b.clear(188, G, 446, 189, G + 5, 452);
++        canopy(b, 189, 437, 13, 10, 7, Materials.ROOF_TILE);
++        hay(b, 208, 449, 8, 3, 6);
++        farmBuilding(b, 240, 501, 29, 24, Materials.BRICK_TEAL,
++                Materials.BRICK_TEAL_ALT, Materials.ROOF_TILE, "HARVEST");
++        farmBuilding(b, 450, 512, 24, 31, Materials.BRICK_TAN,
++                Materials.BRICK_TAN_ALT, Materials.ROOF_BLUE, "FISHERY");
++        b.scenery().landmark("Packing Lane", 188, 129, 34);
++        b.scenery().landmark("Field House", 54, 405, 29);
++        b.scenery().landmark("Ruined Barn", 204, 449, 27);
++    }
++
++    private static void farmBuilding(MapBuilder b, int x, int z, int width, int depth,
++                                     int wall, int alt, int roof, String name) {
++        b.slab(x - 3, z - 4, x + width + 2, z + depth + 3, G - 1, Materials.DIRT);
++        countryBuilding(b, x, z, width, depth, 8, wall, alt, roof);
++        // Two opposite entrances and a cross door keep each farm building useful to infantry.
++        b.doorway(x + width - 1, G, z + depth / 2, 0, 5, 5);
++        b.fill(x + 3, G, z + depth - 7, x + 7, G + 1, z + depth - 4, Materials.WOOD);
++        b.crate(x + width - 7, G, z + 4, 3, Materials.CRATE, Materials.WOOD_DARK);
++        float pixel = Math.min(.36f, (width - 5f) / (name.length() * 4 + 1));
++        DecorRecipes.sign(b.scenery(), x + 2, G + 5.6f, z - .16f, name, pixel, roof);
++        DecorRecipes.awning(b.scenery(), x + width / 2f - 5, G + 5, z - 2, 10, roof);
++    }
++
++    private static void tractor(MapBuilder b, int x, int z, int color) {
++        b.fill(x, G, z + 1, x + 9, G + 2, z + 4, color);
++        b.fill(x + 5, G + 3, z + 1, x + 8, G + 5, z + 4, Materials.GLASS);
++        b.slab(x + 4, z, x + 9, z + 5, G + 6, color);
++        for (int wx : new int[]{x + 1, x + 7}) for (int wz : new int[]{z, z + 5})
++            b.fill(wx, G, wz, wx + 1, G + 2, wz, Materials.RUBBER);
++        b.fill(x + 2, G + 3, z + 2, x + 2, G + 5, z + 2, Materials.STEEL);
++    }
++
++    private static void fieldCover(MapBuilder b) {
++        // Clusters follow field edges and the roads, leaving traversable gaps every few pieces.
++        int[][] bales = {{189, 73, 9, 4, 5}, {235, 32, 9, 3, 5}, {260, 75, 8, 4, 5},
++                {119, 354, 10, 3, 6}, {87, 436, 9, 4, 6}, {38, 461, 8, 3, 8},
++                {123, 493, 9, 3, 6}, {73, 554, 10, 4, 5}, {232, 378, 8, 4, 6},
++                {220, 407, 8, 3, 6}, {291, 428, 7, 3, 9}, {238, 466, 9, 4, 5},
++                {185, 548, 12, 3, 6}, {278, 550, 10, 4, 6}, {505, 374, 7, 4, 9},
++                {563, 443, 9, 3, 6}, {601, 464, 8, 4, 6}, {507, 554, 9, 3, 6}};
++        for (int[] p : bales) hay(b, p[0], p[1], p[2], p[3], p[4]);
++        int[][] edges = {{148, 39, 0, 25}, {170, 20, 0, 23}, {148, 188, 0, 35},
++                {170, 389, 0, 26}, {149, 520, 0, 30}, {306, 36, 0, 27},
++                {331, 116, 0, 25}, {305, 241, 0, 28}, {331, 399, 0, 27},
++                {307, 525, 0, 24}, {466, 113, 0, 21}, {490, 226, 0, 22},
++                {467, 389, 0, 22}, {491, 503, 0, 28}, {49, 308, 1, 29},
++                {219, 311, 1, 31}, {508, 113, 1, 25}, {544, 458, 1, 27},
++                {44, 492, 1, 27}, {194, 493, 1, 31}};
++        for (int[] p : edges) {
++            boolean alongX = p[2] == 1;
++            int first = p[3] / 2 - 3;
++            hedge(b, p[0], p[1], alongX, first);
++            hedge(b, p[0] + (alongX ? first + 7 : 0),
++                    p[1] + (alongX ? 0 : first + 7), alongX, p[3] - first - 7);
++        }
++        // Timber carts and stone stacks identify the canal shoulders without narrowing bridges.
++        for (int[] p : new int[][]{{367, 78}, {446, 112}, {350, 310}, {438, 329}, {351, 490}}) {
++            b.fill(p[0], G, p[1], p[0] + 9, G + 1, p[1] + 4, Materials.WOOD_DARK);
++            b.fill(p[0] + 1, G + 2, p[1] + 1, p[0] + 8, G + 3,
++                    p[1] + 3, Materials.WOOD);
++        }
+     }
+ 
+     private static void callouts(MapBuilder b) {
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/MovementCourse.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/MovementCourse.java
+@@ -1,6 +1,7 @@
+ package com.ccs.voxelgun.map.maps;
+ 
+ import com.ccs.voxelgun.map.*;
++import com.ccs.voxelgun.map.scenery.DecorRecipes;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /** Dedicated procedural training course; does not change existing catalog/spawn indices. */
+@@ -46,9 +47,51 @@
+         // A low visual canopy and an explicitly slide-gated checkpoint (voxel gap = 2 metres).
+         b.fill(82, 5, 26, 86, 5, 38, Materials.PANEL_GREY);
+         b.fill(8, 2, 27, 11, 2, 37, Materials.MINT);
++        trainingPark(b);
+         blueSpawn(8, 32, 90);
+         redSpawn(8, 32, 90);
+         freeSpawn(8, 32, 90);
+         for (int x = 12; x < 124; x += 18) b.tree(x, 3, 80, 6);
+     }
++
++    /** Frame the sprint lane with a small sports campus; the timed route stays unchanged. */
++    private void trainingPark(MapBuilder b) {
++        b.building(12, 7, 23, 12, 8, Materials.BRICK_TEAL,
++                Materials.BRICK_TEAL_ALT, Materials.FRAME_LIGHT);
++        b.building(91, 7, 24, 12, 8, Materials.BRICK_ORANGE,
++                Materials.BRICK_ORANGE_ALT, Materials.FRAME_LIGHT);
++        DecorRecipes.sign(b.scenery(), 17, 9, 6.85f, "TRAINING", .3f, Materials.TRIM_BLUE);
++        DecorRecipes.sign(b.scenery(), 96, 9, 6.85f, "FINISH", .3f, Materials.TRIM_RED);
++        b.tiledFloor(9, 64, 118, 74, 2, Materials.TILE_FLOOR, Materials.TILE_GROUT, 6);
++        // Open spectator shelters, paired planting beds and a furnished rest promenade.
++        for (int x : new int[]{14, 48, 82}) {
++            b.fill(x, 3, 66, x, 8, 66, Materials.WOOD_DARK);
++            b.fill(x + 20, 3, 66, x + 20, 8, 66, Materials.WOOD_DARK);
++            b.fill(x, 3, 74, x, 8, 74, Materials.WOOD_DARK);
++            b.fill(x + 20, 3, 74, x + 20, 8, 74, Materials.WOOD_DARK);
++            b.fill(x - 1, 9, 65, x + 21, 9, 75, Materials.PLASTER);
++            b.fill(x - 1, 10, 65, x + 21, 10, 65, Materials.TRIM_BLUE);
++            b.fill(x + 3, 3, 72, x + 8, 3, 73, Materials.WOOD_LIGHT);
++            b.fill(x + 12, 3, 72, x + 17, 3, 73, Materials.WOOD_LIGHT);
++            b.fill(x + 3, 4, 73, x + 8, 4, 73, Materials.WOOD_DARK);
++            b.fill(x + 12, 4, 73, x + 17, 4, 73, Materials.WOOD_DARK);
++            DecorRecipes.flowers(b.scenery(), x + 2, 3, 61, Materials.CORAL);
++            b.fill(x, 3, 95, x + 22, 3, 97, Materials.CONCRETE);
++            b.fill(x, 3, 98, x + 22, 4, 100, Materials.STONE_LIGHT);
++            b.fill(x, 3, 101, x + 22, 5, 103, Materials.CONCRETE);
++            b.fill(x, 3, 104, x + 22, 6, 106, Materials.STONE_LIGHT);
++            for (int seat = 1; seat < 22; seat += 3) {
++                b.set(x + seat, 5, 99, Materials.TRIM_BLUE);
++                b.set(x + seat, 7, 105, Materials.CORAL);
++            }
++        }
++        for (int x : new int[]{8, 42, 76, 110}) {
++            b.fill(x, 3, 112, x + 9, 3, 119, Materials.PLASTER);
++            b.fill(x + 1, 4, 113, x + 8, 5, 118, Materials.LEAVES);
++            b.tree(x + 4, 3, 116, 7);
++        }
++        b.scenery().landmark("Start Pavilion", 20, 30, 22);
++        b.scenery().landmark("Jump Yard", 51, 48, 18);
++        b.scenery().landmark("Finish Pavilion", 104, 32, 20);
++    }
+ }
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/NeonArena.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/NeonArena.java
+@@ -3,6 +3,7 @@
+ import com.ccs.voxelgun.map.GameMap;
+ import com.ccs.voxelgun.map.MapBuilder;
+ import com.ccs.voxelgun.map.MapEnvironment;
++import com.ccs.voxelgun.map.scenery.ClassicArenaDressing;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /**
+@@ -41,6 +42,8 @@
+         ringPlatforms(b);
+         neonRing(b);
+         cover(b);
++
++        ClassicArenaDressing.geometry(b, id());
+ 
+         blueSpawn(34, 64, 90);
+         blueSpawn(34, 56, 90);
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/PirateCove.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/PirateCove.java
+@@ -3,6 +3,7 @@
+ import com.ccs.voxelgun.map.GameMap;
+ import com.ccs.voxelgun.map.MapBuilder;
+ import com.ccs.voxelgun.map.MapEnvironment;
++import com.ccs.voxelgun.map.scenery.ClassicArenaDressing;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /**
+@@ -40,6 +41,8 @@
+         galleon(b);
+         docks(b);
+         village(b);
++
++        ClassicArenaDressing.geometry(b, id());
+ 
+         blueSpawn(18, 22, 135);
+         blueSpawn(24, 18, 135);
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/SkyIslands.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/SkyIslands.java
+@@ -3,6 +3,7 @@
+ import com.ccs.voxelgun.map.GameMap;
+ import com.ccs.voxelgun.map.MapBuilder;
+ import com.ccs.voxelgun.map.MapEnvironment;
++import com.ccs.voxelgun.map.scenery.ClassicArenaDressing;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /**
+@@ -65,6 +66,8 @@
+             b.clear(tent[0] + 3, RING + 2, tent[1] - 2,
+                     tent[0] + 5, RING + 5, tent[1] + 2);
+         }
++
++        ClassicArenaDressing.geometry(b, id());
+ 
+         blueSpawn(24, 26, 45);
+         blueSpawn(30, 22, 45);
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/Village.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/Village.java
+@@ -4,6 +4,7 @@
+ import com.ccs.voxelgun.map.CombatLayout;
+ import com.ccs.voxelgun.map.MapBuilder;
+ import com.ccs.voxelgun.map.MapEnvironment;
++import com.ccs.voxelgun.map.scenery.ClassicArenaDressing;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /**
+@@ -33,7 +34,8 @@
+     protected void generate(MapBuilder b) {
+         b.fill(0, 0, 0, SIZE_X - 1, G - 2, SIZE_Z - 1, Materials.DIRT);
+         b.fill(0, G - 1, 0, SIZE_X - 1, G - 1, SIZE_Z - 1, Materials.GRASS);
+-        b.boundary(4, 16, Materials.BRICK_WHITE, Materials.BRICK_WHITE_ALT, Materials.TRIM_RED);
++        // Keep the village contained while its roofs, trees and tower define the skyline.
++        b.boundary(4, 9, Materials.BRICK_WHITE, Materials.BRICK_WHITE_ALT, Materials.TRIM_RED);
+ 
+         roads(b);
+         houses(b);
+@@ -41,6 +43,8 @@
+         church(b);
+         outskirts(b);
+         combatRoutes(b);
++
++        ClassicArenaDressing.geometry(b, id());
+ 
+         blueSpawn(16, 16, 135);
+         blueSpawn(20, 22, 135);
+--- before/app/src/main/java/com/ccs/voxelgun/map/maps/Warehouse.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/maps/Warehouse.java
+@@ -3,6 +3,7 @@
+ import com.ccs.voxelgun.map.GameMap;
+ import com.ccs.voxelgun.map.MapBuilder;
+ import com.ccs.voxelgun.map.MapEnvironment;
++import com.ccs.voxelgun.map.scenery.ClassicArenaDressing;
+ import com.ccs.voxelgun.voxel.Materials;
+ 
+ /**
+@@ -39,6 +40,8 @@
+         officeBlock(b);
+         catwalks(b);
+         props(b);
++
++        ClassicArenaDressing.geometry(b, id());
+ 
+         blueSpawn(14, 20, 135);
+         blueSpawn(18, 24, 135);
+--- before/app/src/main/java/com/ccs/voxelgun/map/scenery/MapDressing.java
++++ after/app/src/main/java/com/ccs/voxelgun/map/scenery/MapDressing.java
+@@ -11,10 +11,13 @@
+             case "village" -> VillageDressing.build(b);
+             case "battlefield_alps" -> AlpineDressing.build(b);
+             case "battlefield_city" -> CityBattlefieldDressing.build(b);
+-            case "rooftop_district" -> UrbanDressing.build(b, false);
+-            case "warehouse", "facility", "harbor_yard", "reactor_core", "train_depot",
+-                 "orbital_dock", "volcano_forge", "bunker_13" -> IndustrialDressing.build(b, map.id());
++            case "warehouse", "facility" -> IndustrialDressing.build(b, map.id());
++            case "harbor_yard", "arctic_station", "metro_junction", "canyon_outpost",
++                 "reactor_core", "rooftop_district", "bamboo_temple", "stone_quarry",
++                 "orbital_dock", "flooded_plaza", "train_depot", "volcano_forge",
++                 "ice_citadel", "solar_farm", "bunker_13" -> ExpansionDressing.build(b, map.id());
+             default -> { }
+         }
++        ClassicArenaDressing.build(b, map.id());
+     }
+ }
+--- /dev/null
++++ after/app/src/main/java/com/ccs/voxelgun/map/scenery/ClassicArenaDressing.java
+@@ -0,0 +1,611 @@
++package com.ccs.voxelgun.map.scenery;
++
++import com.ccs.voxelgun.map.MapBuilder;
++import com.ccs.voxelgun.voxel.Materials;
++
++/**
++ * Authored streets, work areas and courtyard furniture for the original eight arenas.
++ * Large silhouettes belong to the voxel world; only shallow trim belongs to the visual layer.
++ * Each layout deliberately leaves the original deployment pockets and stair approaches open.
++ */
++public final class ClassicArenaDressing {
++    private static final int G = MapBuilder.GROUND;
++    private ClassicArenaDressing() { }
++
++    /** Called by the generator before its spawn list is authored. */
++    public static void geometry(MapBuilder b, String id) {
++        switch (id) {
++            case "dust_yard" -> desert(b);
++            case "warehouse" -> warehouse(b);
++            case "neon_arena" -> arena(b);
++            case "village" -> village(b);
++            case "facility" -> facility(b);
++            case "pirate_cove" -> pirate(b);
++            case "sky_islands" -> sky(b);
++            case "candy_castle" -> castle(b);
++            default -> { }
++        }
++    }
++
++    /** Surface detail applied after existing theme dressing. */
++    public static void build(MapBuilder b, String id) {
++        MapScenery s = b.scenery();
++        switch (id) {
++            case "dust_yard" -> {
++                s.landmark("Bazaar", 64, 15, 24);
++                s.landmark("Sun Court", 64, 64, 22);
++                s.landmark("Caravan Yard", 66, 114, 22);
++                desertDetails(b);
++            }
++            case "warehouse" -> warehouseDetails(b);
++            case "neon_arena" -> {
++                s.landmark("Reactor Bridge", 64, 64, 17);
++                s.landmark("North Gallery", 64, 30, 18);
++                s.landmark("South Gallery", 64, 98, 18);
++                arenaDetails(b);
++            }
++            case "village" -> villageDetails(b);
++            case "facility" -> facilityDetails(b);
++            case "pirate_cove" -> {
++                s.landmark("Galleon", 67, 52, 27);
++                s.landmark("Fish Market", 40, 83, 19);
++                s.landmark("Sailmakers", 85, 35, 16);
++                pirateDetails(b);
++            }
++            case "sky_islands" -> {
++                s.landmark("Sky Temple", 64, 64, 22);
++                s.landmark("Blue Windmill", 30, 30, 19);
++                s.landmark("Coral Windmill", 98, 98, 19);
++                skyDetails(b);
++            }
++            case "candy_castle" -> {
++                s.landmark("Great Hall", 64, 64, 22);
++                s.landmark("Sugar Gardens", 64, 20, 23);
++                s.landmark("Bakery Lane", 85, 113, 20);
++                castleDetails(b);
++            }
++            default -> { }
++        }
++    }
++
++    private static void desert(MapBuilder b) {
++        // A continuous village edge replaces the empty strip behind the long tunnel.
++        shop(b, 8, 8, 18, 11, 11, Materials.BRICK_TAN, Materials.TRIM_BLUE);
++        shop(b, 42, 7, 15, 12, 9, Materials.SANDSTONE, Materials.TRIM_RED);
++        shop(b, 71, 7, 15, 12, 12, Materials.BRICK_TAN, Materials.TRIM_BLUE);
++        shop(b, 101, 8, 18, 11, 10, Materials.SANDSTONE, Materials.TRIM_RED);
++        shop(b, 8, 114, 17, 7, 8, Materials.SANDSTONE, Materials.TRIM_RED);
++        shop(b, 103, 114, 16, 7, 11, Materials.BRICK_TAN, Materials.TRIM_BLUE);
++        for (int x : new int[]{7, 113}) {
++            canopy(b, x, G, 91, 8, 12, Materials.TRIM_RED, Materials.WOOD_DARK);
++            counter(b, x + 1, G, 100, 6, Materials.WOOD, Materials.SANDSTONE);
++        }
++        // Side courts have a purpose: clay merchants and shaded loading pads.
++        for (int x : new int[]{9, 116}) {
++            for (int z : new int[]{27, 34, 41}) {
++                b.pillar(x, G, z, 3, 1, Materials.CORAL);
++                b.disc(x, G + 3, z, 1, Materials.SANDSTONE);
++                b.set(x, G + 3, z, Materials.WOOD_DARK);
++            }
++        }
++        for (int x : new int[]{49, 74}) {
++            canopy(b, x, G, 116, 7, 6, Materials.CANVAS, Materials.WOOD_DARK);
++            counter(b, x + 1, G, 119, 5, Materials.WOOD, Materials.WOOD_LIGHT);
++        }
++        // Strong coping and recessed pilasters make the old spawn fortresses readable.
++        for (int side = 0; side < 2; side++) {
++            int lo = side == 0 ? 10 : 97, hi = side == 0 ? 30 : 117;
++            b.trimBand(lo, 48, hi, 80, G + 8, G + 8, Materials.BRICK_TAN);
++            for (int z : new int[]{48, 80}) for (int x : new int[]{lo, hi})
++                b.fill(x, G, z, x, G + 9, z, Materials.BRICK_TAN);
++            b.fill(lo + 2, G + 8, 48, hi - 2, G + 9, 48,
++                    side == 0 ? Materials.TRIM_BLUE : Materials.TRIM_RED);
++        }
++        b.tiledFloor(42, 19, 86, 21, G - 1, Materials.SANDSTONE, Materials.BRICK_TAN, 7);
++        b.tiledFloor(43, 113, 87, 115, G - 1, Materials.SANDSTONE, Materials.BRICK_TAN, 7);
++    }
++
++    private static void warehouse(MapBuilder b) {
++        // Loading bays fill the unoccupied north wall, leaving the cross-aisle at z=16.
++        for (int x : new int[]{22, 38, 80, 98}) {
++            b.fill(x, G, 6, x + 10, G + 8, 7, Materials.PANEL_GREY);
++            b.fill(x, G + 9, 6, x + 10, G + 10, 8, Materials.TRIM_BLUE);
++            for (int yy = G + 1; yy < G + 8; yy += 2)
++                b.fill(x + 1, yy, 8, x + 9, yy, 8, Materials.STEEL);
++            b.fill(x, G, 9, x + 10, G, 12, Materials.CONCRETE_DARK);
++            b.fill(x, G, 12, x + 10, G, 12, Materials.HAZARD);
++        }
++        // Two unmistakable industrial silhouettes instead of more anonymous crates.
++        machine(b, 27, G, 43, 9, 6, Materials.PAINT_RED);
++        machine(b, 82, G, 99, 8, 7, Materials.PAINT_BLUE);
++        rack(b, 24, G, 105, 12, 4, Materials.CRATE);
++        rack(b, 116, G, 32, 5, 13, Materials.PANEL_GREY);
++        rack(b, 116, G, 70, 5, 13, Materials.CRATE);
++        // Perimeter safety islands with space to pass around both ends.
++        counter(b, 68, G, 112, 12, Materials.STEEL, Materials.PANEL_GREY);
++        b.fill(68, G + 2, 113, 79, G + 4, 114, Materials.GRATE);
++        b.fill(69, G + 3, 112, 72, G + 4, 112, Materials.SCREEN);
++        // Upper office is now a furnished operations room, clear of both stair flights.
++        counter(b, 89, G + 9, 36, 9, Materials.PLASTIC_WHITE, Materials.WOOD_LIGHT);
++        b.fill(91, G + 11, 36, 94, G + 12, 36, Materials.SCREEN);
++        b.fill(102, G + 9, 39, 104, G + 12, 43, Materials.PANEL_GREY);
++        b.fill(91, G, 42, 100, G + 1, 44, Materials.PAINT_BLUE);
++        b.fill(91, G + 2, 44, 100, G + 3, 44, Materials.PAINT_BLUE);
++        // Beam spans are overhead and retain every existing stair's four-block clearance.
++        for (int z : new int[]{10, 38, 90, 116}) {
++            b.fill(6, G + 18, z, 121, G + 19, z + 1, Materials.STEEL);
++            for (int x = 16; x <= 112; x += 24)
++                b.fill(x, G + 17, z - 1, x + 5, G + 17, z + 2, Materials.LAMP);
++        }
++    }
++
++    private static void arena(MapBuilder b) {
++        // Stepped galleries create a stadium silhouette inside the old bare drum.
++        for (int z : new int[]{24, 100}) {
++            boolean north = z < 64;
++            for (int row = 0; row < 3; row++) {
++                int rz = z + (north ? row * 2 : -row * 2);
++                b.fill(52, G, rz, 59, G + 3 - row, rz + 1, Materials.CONCRETE_DARK);
++                b.fill(69, G, rz, 76, G + 3 - row, rz + 1, Materials.CONCRETE_DARK);
++                b.fill(53, G + 4 - row, rz, 58, G + 4 - row, rz,
++                        north ? Materials.PAINT_BLUE : Materials.PAINT_RED);
++                b.fill(70, G + 4 - row, rz, 75, G + 4 - row, rz,
++                        north ? Materials.PAINT_BLUE : Materials.PAINT_RED);
++            }
++        }
++        for (int x : new int[]{25, 99}) {
++            int accent = x < 64 ? Materials.NEON_CYAN : Materials.NEON_MAGENTA;
++            // Long team bench/technical booth, five clear blocks behind the spawn line.
++            b.fill(x, G, 56, x + 3, G + 2, 72, Materials.CONCRETE);
++            b.fill(x, G + 3, 56, x, G + 7, 72, Materials.PANEL_GREY);
++            b.fill(x, G + 8, 55, x + 4, G + 8, 73, Materials.CONCRETE_DARK);
++            b.fill(x + 1, G + 8, 56, x + 3, G + 8, 72, accent);
++            for (int z : new int[]{56, 72}) b.fill(x, G, z, x + 1, G + 8, z, Materials.STEEL);
++        }
++        // Pylon pairs carry the scoreboards and frame the north/south running routes.
++        for (int z : new int[]{27, 99}) {
++            for (int x : new int[]{47, 79}) {
++                b.fill(x, G, z, x + 1, G + 14, z + 1, Materials.PANEL_GREY);
++                b.fill(x, G + 3, z, x, G + 12, z,
++                        z < 64 ? Materials.NEON_CYAN : Materials.NEON_MAGENTA);
++            }
++            b.fill(49, G + 12, z, 78, G + 16, z + 1, Materials.CONCRETE_DARK);
++            b.fill(51, G + 13, z, 76, G + 15, z, Materials.SCREEN);
++        }
++        for (int x : new int[]{45, 81}) for (int z : new int[]{45, 81}) {
++            b.fill(x, G + 5, z, x + 2, G + 6, z + 2, Materials.PANEL_GREY);
++            b.fill(x, G + 7, z, x + 2, G + 7, z + 2, Materials.PAINT_BLUE);
++        }
++    }
++
++    private static void village(MapBuilder b) {
++        // The former empty quadrants become a bakery lane, workshop and two small gardens.
++        shop(b, 39, 8, 14, 12, 10, Materials.BRICK_ORANGE, Materials.TRIM_RED);
++        shop(b, 77, 108, 14, 12, 9, Materials.BRICK_TAN, Materials.TRIM_BLUE);
++        shop(b, 77, 35, 8, 13, 8, Materials.BRICK_WHITE, Materials.TRIM_BLUE);
++        shop(b, 8, 97, 15, 10, 8, Materials.BRICK_TAN, Materials.TRIM_RED);
++        canopy(b, 43, G, 31, 9, 10, Materials.CANVAS, Materials.WOOD_DARK);
++        counter(b, 44, G, 36, 7, Materials.WOOD, Materials.WOOD_LIGHT);
++        planter(b, 43, G, 44, 9, 4, Materials.BRICK_WHITE);
++        planter(b, 76, G, 96, 8, 4, Materials.BRICK_TAN);
++        b.tiledFloor(40, 21, 52, 27, G - 1, Materials.TILE_FLOOR, Materials.TILE_GROUT, 6);
++        b.tiledFloor(76, 101, 89, 106, G - 1, Materials.TILE_FLOOR, Materials.TILE_GROUT, 6);
++        // Furnishing stays along the back walls, leaving each house's door-to-door axis open.
++        counter(b, 20, G + 1, 84, 8, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        counter(b, 39, G + 1, 92, 7, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        counter(b, 82, G + 1, 26, 8, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        counter(b, 102, G + 1, 44, 8, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        counter(b, 18, G + 1, 46, 8, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        counter(b, 99, G + 1, 86, 9, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        // Church benches form two banks around the clear central aisle and side door.
++        for (int z : new int[]{99, 108}) {
++            b.fill(32, G, z, 34, G + 1, z + 1, Materials.WOOD_DARK);
++            b.fill(38, G, z, 40, G + 1, z + 1, Materials.WOOD_DARK);
++            b.fill(32, G + 2, z + 1, 34, G + 2, z + 1, Materials.WOOD);
++            b.fill(38, G + 2, z + 1, 40, G + 2, z + 1, Materials.WOOD);
++        }
++    }
++
++    private static void facility(MapBuilder b) {
++        // Paint only solid rock at room edges, preserving every carved connector.
++        int[][] rooms = {{12,12,46,46},{82,82,116,116},{14,84,44,114},{84,14,114,44}};
++        for (int[] room : rooms) {
++            for (int x = room[0] - 1; x <= room[2] + 1; x++)
++                for (int y = G; y <= G + 10; y++) {
++                    panelRock(b, x, y, room[1] - 1, y < G + 3 ? Materials.TRIM_BLUE : Materials.PLASTIC_WHITE);
++                    panelRock(b, x, y, room[3] + 1, y < G + 3 ? Materials.TRIM_BLUE : Materials.PLASTIC_WHITE);
++                }
++            for (int z = room[1] - 1; z <= room[3] + 1; z++)
++                for (int y = G; y <= G + 10; y++) {
++                    panelRock(b, room[0] - 1, y, z, y < G + 3 ? Materials.TRIM_BLUE : Materials.PLASTIC_WHITE);
++                    panelRock(b, room[2] + 1, y, z, y < G + 3 ? Materials.TRIM_BLUE : Materials.PLASTIC_WHITE);
++                }
++        }
++        // Medical wing: beds, imaging machines and equipment cabinets fill the huge west room.
++        medicalBed(b, 17, 88);
++        medicalBed(b, 35, 106);
++        machine(b, 35, G, 86, 7, 5, Materials.PLASTIC_WHITE);
++        cabinet(b, 15, G, 103, 5, 9, Materials.PAINT_BLUE);
++        counter(b, 24, G, 111, 10, Materials.PLASTIC_WHITE, Materials.STEEL);
++        // Test workshop: two distinct working islands with a generous cross aisle.
++        machine(b, 105, G, 17, 7, 8, Materials.PANEL_GREY);
++        counter(b, 85, G, 37, 9, Materials.PLASTIC_WHITE, Materials.STEEL);
++        counter(b, 98, G, 37, 12, Materials.PLASTIC_WHITE, Materials.STEEL);
++        b.fill(89, G + 2, 38, 91, G + 3, 39, Materials.SCREEN);
++        b.fill(103, G + 2, 38, 106, G + 3, 39, Materials.SCREEN);
++        cabinet(b, 13, G, 14, 2, 17, Materials.PAINT_BLUE);
++        cabinet(b, 114, G, 85, 2, 12, Materials.PAINT_RED);
++        b.fill(38, G, 34, 43, G + 2, 35, Materials.PLASTIC_WHITE);
++        b.fill(85, G, 109, 90, G + 2, 111, Materials.PLASTIC_WHITE);
++        // Glass coolant tanks are solid cover with capped bases, not floor clutter.
++        for (int[] p : new int[][]{{56,91},{69,103}}) {
++            int x = p[0], z = p[1];
++            b.fill(x, G, z, x + 3, G + 1, z + 2, Materials.STEEL);
++            b.fill(x + 1, G + 2, z, x + 2, G + 6, z + 2, Materials.NEON_CYAN);
++            b.fill(x, G + 7, z, x + 3, G + 7, z + 2, Materials.STEEL);
++        }
++    }
++
++    private static void pirate(MapBuilder b) {
++        // Working harbours give both otherwise empty lagoon flanks a readable destination.
++        b.deck(34, 76, 47, 90, G);
++        canopy(b, 35, G + 1, 77, 11, 11, Materials.CANVAS, Materials.WOOD_DARK);
++        counter(b, 36, G + 1, 85, 8, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        b.fill(35, G, 77, 35, G - 1, 88, Materials.WOOD_DARK);
++        b.deck(78, 30, 92, 40, G);
++        canopy(b, 80, G + 1, 31, 11, 8, Materials.CORAL, Materials.WOOD_DARK);
++        counter(b, 82, G + 1, 36, 7, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        // Angular rocks are large enough to interrupt lagoon sightlines without closing a dock.
++        rock(b, 18, G, 86, 8, 9, 7);
++        rock(b, 99, G, 17, 8, 9, 8);
++        rock(b, 9, G, 49, 7, 9, 5);
++        rock(b, 110, G, 71, 7, 7, 6);
++        rowboat(b, 13, 73);
++        rowboat(b, 96, 45);
++        // Cannon carriages belong to the ship's wide side decks, away from the central hatch.
++        for (int x : new int[]{54, 68}) for (int z : new int[]{46, 57}) {
++            b.fill(x, G + 7, z, x + 2, G + 7, z + 1, Materials.WOOD_DARK);
++            b.fill(x + 1, G + 8, z - 1, x + 1, G + 8, z + 2, Materials.STEEL);
++        }
++        for (int x : new int[]{36, 42}) {
++            b.barrel(x, G + 1, 79, Materials.WOOD_DARK);
++            b.set(x, G + 4, 79, Materials.WOOD_LIGHT);
++        }
++    }
++
++    private static void sky(MapBuilder b) {
++        // Fragmented temple walls create pockets of cover on the four plateau diagonals.
++        for (int x : new int[]{52, 72}) for (int z : new int[]{52, 72}) {
++            b.fill(x, 27, z, x + 4, 27, z + 4, Materials.STONE_LIGHT);
++            b.fill(x, 28, z, x + 4, 30, z, Materials.STONE_LIGHT);
++            b.fill(x, 28, z, x, 33, z + 3, Materials.STONE_LIGHT);
++            b.fill(x, 34, z, x + 4, 34, z, Materials.MARBLE);
++            b.fill(x + 4, 28, z, x + 4, 33, z, Materials.STONE_LIGHT);
++            b.set(x + 2, 35, z, Materials.GOLD);
++        }
++        // Small stone gardens on the cardinal lookout islands, outside their door approaches.
++        planter(b, 17, 19, 61, 3, 7, Materials.STONE_LIGHT);
++        planter(b, 109, 19, 61, 3, 7, Materials.STONE_LIGHT);
++        b.fill(19, 19, 57, 23, 20, 58, Materials.STONE_LIGHT);
++        b.fill(105, 19, 70, 109, 20, 71, Materials.STONE_LIGHT);
++        // Home cottage roof chimneys and corner trims survive without altering spawn floors.
++        for (int[] home : new int[][]{{25,26},{93,94}}) {
++            int x = home[0], z = home[1];
++            b.fill(x + 1, 26, z + 6, x + 2, 32, z + 7, Materials.BRICK_WHITE);
++            b.fill(x, 33, z + 5, x + 3, 33, z + 8, Materials.STONE_LIGHT);
++            b.trimBand(x, z, x + 11, z + 9, 24, 24, Materials.FRAME_LIGHT);
++        }
++        // Outpost tents now have small stone terraces that follow the existing island cap.
++        for (int[] p : new int[][]{{30,98},{98,30}}) {
++            int x = p[0], z = p[1];
++            b.fill(x - 7, 18, z - 7, x - 3, 18, z - 3, Materials.STONE_LIGHT);
++            b.fill(x - 7, 19, z - 7, x - 3, 20, z - 7, Materials.STONE_LIGHT);
++            b.fill(x - 7, 19, z - 6, x - 7, 21, z - 3, Materials.STONE_LIGHT);
++            b.set(x - 7, 22, z - 7, Materials.LANTERN);
++        }
++    }
++
++    private static void castle(MapBuilder b) {
++        // Four small confectionery buildings turn the broad outer lawn into themed streets.
++        shop(b, 42, 8, 14, 12, 9, Materials.CANDY_PINK, Materials.TRIM_RED);
++        shop(b, 75, 108, 16, 12, 10, Materials.MINT, Materials.TRIM_BLUE);
++        shop(b, 8, 36, 14, 12, 9, Materials.SUNNY, Materials.TRIM_BLUE);
++        shop(b, 106, 81, 14, 13, 9, Materials.SKY_BLUE, Materials.TRIM_RED);
++        canopy(b, 70, G, 33, 8, 8, Materials.CANDY_PINK, Materials.WOOD_DARK);
++        counter(b, 71, G, 37, 6, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        canopy(b, 48, G, 90, 9, 7, Materials.MINT, Materials.WOOD_DARK);
++        counter(b, 49, G, 93, 6, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        planter(b, 73, G, 17, 14, 5, Materials.STONE_LIGHT);
++        planter(b, 43, G, 108, 12, 5, Materials.STONE_LIGHT);
++        // Pilasters and a continuous pastel cornice give the keep a clear architectural scale.
++        for (int x : new int[]{44, 56, 72, 84}) {
++            for (int z : new int[]{44, 84}) {
++                b.fill(x, G + 6, z, x, G + 9, z, Materials.CANDY_PINK);
++                b.fill(x, G + 12, z, x, G + 16, z, Materials.CANDY_PINK);
++            }
++        }
++        b.trimBand(44, 44, 84, 84, G + 9, G + 9, Materials.CANDY_PINK);
++        b.trimBand(44, 44, 84, 84, G + 16, G + 16, Materials.SKY_BLUE);
++        // Upstairs library and reading tables occupy the previously empty upper great hall.
++        rack(b, 48, G + 11, 57, 11, 3, Materials.WOOD_DARK, 5);
++        rack(b, 47, G + 11, 66, 3, 9, Materials.WOOD_DARK, 5);
++        counter(b, 63, G + 11, 55, 9, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        counter(b, 63, G + 11, 70, 9, Materials.WOOD_DARK, Materials.WOOD_LIGHT);
++        b.fill(77, G + 11, 59, 81, G + 12, 62, Materials.CANDY_PINK);
++        b.fill(80, G + 13, 59, 81, G + 15, 62, Materials.CANDY_PINK);
++        b.fill(46, G, 57, 48, G + 3, 59, Materials.WOOD_DARK);
++        b.fill(81, G, 69, 83, G + 3, 72, Materials.WOOD_DARK);
++    }
++
++    /** Small open-ended shop with a framed facade, shaded window and usable interior. */
++    private static void shop(MapBuilder b, int x, int z, int width, int depth, int height,
++                             int wall, int trim) {
++        int x1 = x + width - 1, z1 = z + depth - 1, top = G + height;
++        b.fill(x, G - 1, z, x1, G - 1, z1, Materials.CONCRETE);
++        b.walls(x, G, z, x1, top - 1, z1, wall);
++        b.fill(x, top, z, x1, top, z1, Materials.CONCRETE);
++        b.trimBand(x, z, x1, z1, top + 1, top + 1, trim);
++        b.quoins(x, z, x1, z1, G, top - 1, Materials.FRAME_LIGHT);
++        // Both ends open: these little buildings add routes as well as cover.
++        b.doorway(x + width / 2, G, z, 1, 3, 4);
++        b.doorway(x + width / 2, G, z1, 1, 3, 4);
++        b.framedWindow(x, G + 2, z + depth / 2, 0, 3, 2, true);
++        b.framedWindow(x1, G + 2, z + depth / 2, 0, 3, 2, true);
++        // Both street faces are designed: perimeter buildings are usually seen from the south.
++        // A side window leaves the central through-door and its full frame clear.
++        if (width >= 14) {
++            b.framedWindow(x + 3, G + 2, z, 1, 3, 2, true);
++            b.framedWindow(x + 3, G + 2, z1, 1, 3, 2, true);
++        }
++        if (height >= 10) b.framedWindow(x1 - 3, G + 6, z1, 1, 3, 2, true);
++        b.fill(x + 1, G + 5, z - 1, x1 - 1, G + 5, z - 1, trim);
++        b.fill(x + 1, G + 5, z1 + 1, x1 - 1, G + 5, z1 + 1, trim);
++        for (int px = x + 2; px < x1; px += 3)
++            b.set(px, G + 5, z1 + 1, Materials.FRAME_LIGHT);
++        b.fill(x + 1, G + 6, z, x1 - 1, G + 6, z, trim);
++        b.fill(x + 1, G, z + depth - 4, x + 2, G + 1, z + depth - 2, Materials.WOOD);
++        b.fill(x1 - 2, G, z + 2, x1 - 1, G + 3, z + 3, Materials.WOOD_DARK);
++        b.fill(x + 2, top + 1, z + 2, x + 4, top + 3, z + 4, Materials.SANDSTONE);
++        b.set(x + 3, top + 4, z + 3, Materials.STEEL);
++    }
++
++    private static void canopy(MapBuilder b, int x, int y, int z, int width, int depth,
++                               int cloth, int post) {
++        for (int px : new int[]{x, x + width - 1}) for (int pz : new int[]{z, z + depth - 1})
++            b.fill(px, y, pz, px, y + 5, pz, post);
++        b.fill(x, y + 6, z, x + width - 1, y + 6, z + depth - 1, cloth);
++        for (int px = x + 1; px < x + width - 1; px += 3)
++            b.fill(px, y + 6, z, px, y + 6, z + depth - 1, Materials.CANVAS);
++    }
++
++    private static void counter(MapBuilder b, int x, int y, int z, int width, int body, int top) {
++        b.fill(x, y, z, x + width - 1, y + 1, z + 1, body);
++        b.fill(x, y + 2, z, x + width - 1, y + 2, z + 2, top);
++    }
++
++    private static void planter(MapBuilder b, int x, int y, int z, int width, int depth, int rim) {
++        b.fill(x, y, z, x + width - 1, y + 1, z + depth - 1, rim);
++        b.fill(x + 1, y + 2, z + 1, x + width - 2, y + 2, z + depth - 2, Materials.LEAVES);
++    }
++
++    private static void rack(MapBuilder b, int x, int y, int z, int width, int depth, int cargo) {
++        rack(b, x, y, z, width, depth, cargo, 7);
++    }
++
++    private static void rack(MapBuilder b, int x, int y, int z, int width, int depth, int cargo,
++                             int height) {
++        int middle = (height + 1) / 2;
++        for (int px : new int[]{x, x + width - 1}) for (int pz : new int[]{z, z + depth - 1})
++            b.fill(px, y, pz, px, y + height, pz, Materials.STEEL);
++        for (int level : new int[]{0, middle, height})
++            b.fill(x, y + level, z, x + width - 1, y + level, z + depth - 1, Materials.STEEL);
++        if (width >= depth) {
++            for (int px = x + 1; px < x + width - 2; px += 4) {
++                b.fill(px, y + 1, z + 1, px + 1, y + middle - 1, z + depth - 2, cargo);
++                b.fill(px, y + middle + 1, z + 1, px + 2, y + height - 1, z + depth - 2, cargo);
++            }
++        } else {
++            for (int pz = z + 1; pz < z + depth - 2; pz += 4) {
++                b.fill(x + 1, y + 1, pz, x + width - 2, y + middle - 1, pz + 1, cargo);
++                b.fill(x + 1, y + middle + 1, pz, x + width - 2, y + height - 1, pz + 2, cargo);
++            }
++        }
++    }
++
++    private static void machine(MapBuilder b, int x, int y, int z, int width, int depth, int body) {
++        b.fill(x, y, z, x + width - 1, y + 1, z + depth - 1, Materials.STEEL);
++        b.fill(x + 1, y + 2, z + 1, x + width - 2, y + 4, z + depth - 2, body);
++        b.fill(x + 2, y + 5, z + 2, x + width - 3, y + 5, z + depth - 3, Materials.PANEL_GREY);
++        b.fill(x + 2, y + 3, z, x + width - 3, y + 4, z, Materials.SCREEN);
++        b.fill(x, y + 2, z + depth - 2, x, y + 5, z + depth - 2, Materials.STEEL);
++        b.set(x, y + 6, z + depth - 2, Materials.EMERGENCY);
++    }
++
++    private static void cabinet(MapBuilder b, int x, int y, int z, int width, int depth, int color) {
++        b.fill(x, y, z, x + width - 1, y + 5, z + depth - 1, color);
++        b.fill(x, y + 6, z, x + width - 1, y + 6, z + depth - 1, Materials.STEEL);
++        for (int pz = z; pz < z + depth; pz += 3)
++            b.fill(x + width - 1, y + 2, pz, x + width - 1, y + 3, pz, Materials.PANEL_GREY);
++    }
++
++    private static void panelRock(MapBuilder b, int x, int y, int z, int material) {
++        if (b.world().get(x, y, z) == Materials.STONE) b.set(x, y, z, material);
++    }
++
++    private static void medicalBed(MapBuilder b, int x, int z) {
++        b.fill(x, G, z, x + 5, G, z + 3, Materials.STEEL);
++        b.fill(x, G + 1, z, x + 5, G + 1, z + 3, Materials.PLASTIC_WHITE);
++        b.fill(x + 1, G + 2, z, x + 5, G + 2, z + 3, Materials.PAINT_BLUE);
++        b.fill(x, G + 2, z, x, G + 3, z + 3, Materials.PLASTIC_WHITE);
++        b.fill(x + 6, G, z, x + 7, G + 4, z + 1, Materials.PANEL_GREY);
++        b.set(x + 6, G + 4, z - 1, Materials.SCREEN);
++    }
++
++    private static void rock(MapBuilder b, int x, int y, int z, int width, int depth, int height) {
++        b.fill(x, y, z, x + width - 1, y + height / 2, z + depth - 1, Materials.STONE_LIGHT);
++        b.fill(x + 1, y + height / 2 + 1, z + 1, x + width - 2, y + height - 1,
++                z + depth - 2, Materials.SANDSTONE);
++        b.fill(x + 2, y + height, z + 2, x + width - 3, y + height, z + depth - 3, Materials.GRASS_BRIGHT);
++        b.palm(x + width / 2, y + height + 1, z + depth / 2, 6);
++    }
++
++    private static void rowboat(MapBuilder b, int x, int z) {
++        b.fill(x + 1, G, z, x + 9, G, z + 3, Materials.WOOD_DARK);
++        b.fill(x, G + 1, z, x + 10, G + 1, z, Materials.WOOD);
++        b.fill(x, G + 1, z + 3, x + 10, G + 1, z + 3, Materials.WOOD);
++        b.fill(x, G, z + 1, x, G + 2, z + 2, Materials.WOOD);
++        b.fill(x + 10, G, z + 1, x + 10, G + 2, z + 2, Materials.WOOD);
++        for (int px : new int[]{x + 3, x + 7}) b.fill(px, G + 1, z, px, G + 1, z + 3, Materials.WOOD_LIGHT);
++    }
++
++    private static void desertDetails(MapBuilder b) {
++        MapScenery s = b.scenery();
++        for (int[] shop : new int[][]{{8,8,18},{42,7,15},{71,7,15},{101,8,18},{8,114,17},{103,114,16}}) {
++            DecorRecipes.awning(s, shop[0] + 1, G + 5.1f, shop[1] - 1.8f, shop[2] - 2, Materials.TRIM_RED);
++            DecorRecipes.sign(s, shop[0] + 3, G + 7, shop[1] - .15f, "BAZAAR", .22f, Materials.WOOD_DARK);
++            shutters(s, shop[0] + 1, G + 7, shop[1] - .15f, shop[2] - 2, Materials.TRIM_BLUE);
++        }
++        for (int x : new int[]{50, 75}) goods(s, x, G + 3, 119, Materials.SUNNY);
++        for (int x : new int[]{10, 115}) goods(s, x, G + 3, 100, Materials.CORAL);
++    }
++
++    private static void warehouseDetails(MapBuilder b) {
++        MapScenery s = b.scenery();
++        for (int[] machine : new int[][]{{27,43},{82,99}}) {
++            DecorRecipes.vent(s, machine[0] + 2, G + 2.3f, machine[1] - .12f);
++            DecorRecipes.pipe(s, machine[0] + 1, G + 5.2f, machine[1] + 1, 5, true, Materials.COPPER);
++        }
++        for (int x : new int[]{22,38,80,98})
++            DecorRecipes.sign(s, x + 2, G + 10.4f, 5.85f, "BAY", .3f, Materials.TRIM_BLUE);
++        // Wall panels, floor bay markings and container corner castings use clean flat tones.
++        for (int x = 18; x < 110; x += 24) for (int z : new int[]{30,56,82}) {
++            s.box(x + .1f, G + 1, z - .07f, .5f, 3.5f, .15f, Materials.FRAME_LIGHT);
++            s.box(x + 12.4f, G + 1, z - .07f, .5f, 3.5f, .15f, Materials.FRAME_LIGHT);
++            s.box(x + 2, G + .02f, z - 3, 10, .03f, .18f, Materials.HAZARD);
++        }
++        for (int x : new int[]{90,94}) deskItems(s, x, G + 12, 37);
++    }
++
++    private static void arenaDetails(MapBuilder b) {
++        MapScenery s = b.scenery();
++        for (int z : new int[]{27,99}) {
++            DecorRecipes.sign(s, 57, G + 13, z - .16f, "ARENA", .42f, Materials.CONCRETE_DARK);
++            s.box(49, G + 11.7f, z - .12f, 30, .2f, .2f,
++                    z < 64 ? Materials.NEON_CYAN : Materials.NEON_MAGENTA);
++        }
++        for (int x : new int[]{25,99}) {
++            for (int z = 58; z <= 70; z += 4)
++                s.box(x + 1.5f, G + 3.05f, z, 1.2f, .3f, 1.6f, Materials.RUBBER);
++        }
++        // Inlaid lane dashes lead around the pit, with the hazardous centre kept visually quiet.
++        for (int x = 38; x <= 88; x += 5) for (int z : new int[]{35,93})
++            s.box(x, G + .02f, z, 2.5f, .03f, .18f, Materials.FRAME_LIGHT);
++        for (int x : new int[]{45,81}) for (int z : new int[]{45,81})
++            DecorRecipes.vent(s, x + .6f, G + 5.4f, z - .12f);
++    }
++
++    private static void villageDetails(MapBuilder b) {
++        MapScenery s = b.scenery();
++        int[][] shops = {{39,8,14},{77,108,14},{77,35,8},{8,97,15}};
++        String[] names = {"BAKERY","WORKSHOP","GARDEN","CAFE"};
++        for (int i = 0; i < shops.length; i++) {
++            int[] p = shops[i];
++            DecorRecipes.awning(s, p[0] + 1, G + 5.2f, p[1] - 1.4f, p[2] - 2, Materials.TRIM_RED);
++            DecorRecipes.sign(s, p[0] + 2, G + 7, p[1] - .15f, names[i], .19f, Materials.WOOD_DARK);
++        }
++        for (int[] p : new int[][]{{20,84},{39,92},{82,26},{102,44},{18,46},{99,86}})
++            goods(s, p[0] + 1, G + 4.1f, p[1] + .2f, Materials.SUNNY);
++        goods(s, 44, G + 3.1f, 36, Materials.CORAL);
++        for (int x : new int[]{43,77}) DecorRecipes.flowers(s, x + 1, G + 3, x == 43 ? 45 : 97, Materials.CANDY_PINK);
++    }
++
++    private static void facilityDetails(MapBuilder b) {
++        MapScenery s = b.scenery();
++        DecorRecipes.sign(s, 18, 10, 83.85f, "MEDICAL", .3f, Materials.TRIM_BLUE);
++        DecorRecipes.sign(s, 89, 10, 13.85f, "TEST LAB", .27f, Materials.TRIM_BLUE);
++        for (int[] p : new int[][]{{17,88},{35,106}}) {
++            s.box(p[0] + .15f, G + 2.04f, p[1] + .5f, .75f, .25f, 2.8f, Materials.FRAME_LIGHT);
++            s.box(p[0] + 6.25f, G + 4.2f, p[1] - .05f, .45f, .12f, .08f, Materials.NEON_CYAN);
++        }
++        for (int x : new int[]{87,100,106}) deskItems(s, x, G + 3.1f, 37);
++        for (int z = 17; z <= 29; z += 3) DecorRecipes.vent(s, 13.1f, G + 4, z - .12f);
++        for (int x = 18; x <= 38; x += 5)
++            s.box(x, G + .02f, 84, 2.7f, .02f, .2f, Materials.TRIM_BLUE);
++    }
++
++    private static void pirateDetails(MapBuilder b) {
++        MapScenery s = b.scenery();
++        DecorRecipes.sign(s, 37, G + 6, 76.85f, "FISH", .3f, Materials.ROOF_TEAL);
++        DecorRecipes.sign(s, 81, G + 6, 30.85f, "SAILS", .28f, Materials.WOOD_DARK);
++        goods(s, 37, G + 4.1f, 85.3f, Materials.BARREL_TEAL);
++        goods(s, 83, G + 4.1f, 36.2f, Materials.CANVAS);
++        for (int[] hut : new int[][]{{16,20},{30,14},{14,34},{100,96},{108,108},{92,104}}) {
++            int x = hut[0], z = hut[1];
++            shutters(s, x + 1, G + 4.5f, z - .12f, 7, Materials.WOOD_LIGHT);
++            s.box(x - .12f, G, z, .18f, 5.1f, .18f, Materials.WOOD_DARK);
++            s.box(x + 9, G, z, .18f, 5.1f, .18f, Materials.WOOD_DARK);
++        }
++        for (int x : new int[]{58,70,80}) {
++            s.box(x, G + 9, 44.7f, 1.7f, .15f, .2f, Materials.GOLD);
++            s.box(x, G + 9, 58.8f, 1.7f, .15f, .2f, Materials.GOLD);
++        }
++    }
++
++    private static void skyDetails(MapBuilder b) {
++        MapScenery s = b.scenery();
++        for (int[] home : new int[][]{{25,26},{93,94}}) {
++            int x = home[0], z = home[1];
++            DecorRecipes.awning(s, x + 2, 23.5f, z - 1, 7, Materials.ROOF_TEAL);
++            shutters(s, x + 1, 24.5f, z - .15f, 9, Materials.FRAME_LIGHT);
++            s.box(x, 19, z - .1f, .3f, 5.5f, .2f, Materials.WOOD_DARK);
++            s.box(x + 10.7f, 19, z - .1f, .3f, 5.5f, .2f, Materials.WOOD_DARK);
++        }
++        for (int x : new int[]{52,72}) for (int z : new int[]{52,72}) {
++            s.box(x + .1f, 30, z - .1f, 4.8f, .25f, .15f, Materials.ROOF_TEAL);
++            s.box(x + .15f, 28.2f, z - .1f, .3f, 1.3f, .15f, Materials.GOLD);
++        }
++        DecorRecipes.flowers(s, 17, 22, 63, Materials.SUNNY);
++        DecorRecipes.flowers(s, 109, 22, 63, Materials.CANDY_PINK);
++    }
++
++    private static void castleDetails(MapBuilder b) {
++        MapScenery s = b.scenery();
++        for (int[] p : new int[][]{{42,8,14},{75,108,16},{8,36,14},{106,81,14}}) {
++            DecorRecipes.awning(s, p[0] + 1, G + 5.1f, p[1] - 1.4f, p[2] - 2, Materials.CANDY_PINK);
++            DecorRecipes.sign(s, p[0] + 3, G + 7, p[1] - .15f, "SWEETS", .24f, Materials.ROOF_TEAL);
++        }
++        // Book spines are shallow attachments to the real upper-hall shelving.
++        int[] colors = {Materials.CANDY_PINK, Materials.ROOF_TEAL, Materials.SUNNY, Materials.GRAPE};
++        for (int i = 0; i < 19; i++) for (int y : new int[]{G + 12, G + 15})
++            s.box(49 + i * .45f, y, 56.92f, .3f, 1.6f, .1f, colors[i % colors.length]);
++        for (int x : new int[]{64,68}) for (int z : new int[]{55,70}) goods(s, x, G + 14.1f, z, Materials.CANDY_PINK);
++        goods(s, 72, G + 3.1f, 37, Materials.SUNNY);
++        goods(s, 49, G + 3.1f, 93, Materials.CANDY_PINK);
++        DecorRecipes.flowers(s, 74, G + 3, 18, Materials.CORAL);
++        DecorRecipes.flowers(s, 44, G + 3, 109, Materials.SUNNY);
++    }
++
++    /** Upper facade shutters: low frequency colour blocks with shallow slats. */
++    private static void shutters(MapScenery s, float x, float y, float z, int width, int color) {
++        for (float px : new float[]{x, x + width - 2}) {
++            s.box(px, y, z, 1.5f, 1.8f, .15f, color);
++            for (int i = 0; i < 4; i++) s.box(px + .1f, y + .2f + i * .4f, z - .06f,
++                    1.3f, .08f, .06f, Materials.WOOD_DARK);
++        }
++    }
++
++    /** Display trays sit on solid counters, with deliberately chunky readable contents. */
++    private static void goods(MapScenery s, float x, float y, float z, int color) {
++        for (int i = 0; i < 3; i++) {
++            s.box(x + i * 1.5f, y, z, 1.2f, .15f, 1.5f, Materials.WOOD_DARK);
++            s.box(x + .12f + i * 1.5f, y + .15f, z + .12f, .95f, .45f, 1.2f, color);
++        }
++    }
++
++    private static void deskItems(MapScenery s, float x, float y, float z) {
++        s.box(x, y, z + .4f, 1.3f, .13f, .8f, Materials.RUBBER);
++        s.box(x + .5f, y, z + 1.4f, .18f, .8f, .2f, Materials.STEEL);
++        s.box(x, y + .5f, z + 1.5f, 1.3f, .9f, .13f, Materials.CONCRETE_DARK);
++        s.box(x + .1f, y + .6f, z + 1.46f, 1.1f, .65f, .03f, Materials.SCREEN);
++    }
++}
+--- /dev/null
++++ after/app/src/main/java/com/ccs/voxelgun/map/scenery/ExpansionDressing.java
+@@ -0,0 +1,764 @@
++package com.ccs.voxelgun.map.scenery;
++
++import com.ccs.voxelgun.map.MapBuilder;
++import com.ccs.voxelgun.voxel.Materials;
++
++/**
++ * Authored streets, workshops and gardens around the fifteen expansion arenas.
++ * Large silhouettes are collidable voxels; only thin facade fittings are scenery.
++ * Architecture is laid down before the arena's spawn and objective clearance pass.
++ */
++public final class ExpansionDressing {
++    private static final int G = MapBuilder.GROUND;
++    private static final String[] IDS = {"harbor_yard", "arctic_station", "metro_junction",
++            "canyon_outpost", "reactor_core", "rooftop_district", "bamboo_temple",
++            "stone_quarry", "orbital_dock", "flooded_plaza", "train_depot", "volcano_forge",
++            "ice_citadel", "solar_farm", "bunker_13"};
++    private ExpansionDressing() {}
++
++    public static void buildArchitecture(MapBuilder b, int layout) {
++        switch (layout) {
++            case 0 -> harbor(b);
++            case 1 -> arctic(b);
++            case 2 -> metro(b);
++            case 3 -> canyon(b);
++            case 4 -> reactor(b);
++            case 5 -> rooftops(b);
++            case 6 -> garden(b);
++            case 7 -> quarry(b);
++            case 8 -> orbital(b);
++            case 9 -> plaza(b);
++            case 10 -> railway(b);
++            case 11 -> forge(b);
++            case 12 -> citadel(b);
++            case 13 -> solar(b);
++            default -> bunker(b);
++        }
++    }
++
++    /** Preserve each map's earlier details, then add fittings attached to the new architecture. */
++    public static void build(MapBuilder b, String id) {
++        int layout = -1;
++        for (int i = 0; i < IDS.length; i++) if (IDS[i].equals(id)) layout = i;
++        if (layout < 0) return;
++        if (layout == 5) UrbanDressing.build(b, false);
++        else if (layout == 0 || layout == 4 || layout == 8 || layout == 10
++                || layout == 11 || layout == 14) IndustrialDressing.build(b, id);
++
++        MapScenery s = b.scenery();
++        // The original named combat landmarks are retained. Additional names identify routes.
++        switch (layout) {
++            case 0 -> {
++                callouts(s, "Customs House", "Shipwright", "Quayside", 21, 23, 109, 108, 20, 98);
++                facade(s, 12, 10, 10, 15, Materials.TRIM_BLUE, "CUSTOMS");
++                facade(s, 102, 10, 96, 13, Materials.TRIM_RED, "REPAIR");
++                cargoDetails(s, 36, 74, 16); cargoDetails(s, 70, 82, 16);
++                for (int z : new int[]{14, 102}) {
++                    DecorRecipes.pipe(s, 12, 13.2f, z, 15, true, Materials.COPPER);
++                }
++            }
++            case 1 -> {
++                callouts(s, "Weather Lab", "Polar Garage", "Ice Crossing", 20, 22, 108, 105, 64, 64);
++                facade(s, 12, 10, 10, 14, Materials.TRIM_BLUE, "WEATHER");
++                facade(s, 103, 10, 98, 12, Materials.TRIM_RED, "POLAR");
++                for (int x : new int[]{38, 74}) {
++                    DecorRecipes.vent(s, x, 7, x == 38 ? 33.8f : 75.8f);
++                    DecorRecipes.pipe(s, x, 10.8f, x == 38 ? 34 : 76, 15, true, Materials.COPPER);
++                }
++                panel(s, 6.8f, 7, 20, false, Materials.TRIM_BLUE);
++                panel(s, 120.05f, 7, 104, false, Materials.TRIM_RED);
++            }
++            case 2 -> {
++                callouts(s, "Ticket Office", "Cafe", "North Gallery", 20, 22, 108, 105, 64, 12);
++                facade(s, 12, 9, 10, 13, Materials.TRIM_BLUE, "TICKETS");
++                facade(s, 102, 9, 98, 13, Materials.TRIM_RED, "CAFE");
++                for (int z : new int[]{7, 119}) for (int x = 32; x < 100; x += 16) {
++                    panel(s, x, 5.4f, z == 7 ? 7.9f : 118.8f, true, Materials.TRIM_BLUE);
++                }
++                DecorRecipes.sign(s, 55, 9.5f, 35.8f, "PLATFORM", .23f, Materials.TRIM_BLUE);
++                DecorRecipes.sign(s, 55, 9.5f, 92.8f, "PLATFORM", .23f, Materials.TRIM_RED);
++            }
++            case 3 -> {
++                callouts(s, "Market", "Adobe Quarter", "South Arch", 20, 24, 108, 105, 64, 115);
++                facade(s, 12, 10, 10, 13, Materials.ROOF_TEAL, "MARKET");
++                facade(s, 103, 10, 98, 12, Materials.TRIM_RED, "OUTPOST");
++                DecorRecipes.awning(s, 10, 8.6f, 29, 18, Materials.ROOF_TEAL);
++                DecorRecipes.awning(s, 100, 8.6f, 116, 18, Materials.TRIM_RED);
++                for (int x : new int[]{12, 106}) {
++                    DecorRecipes.flowers(s, x, 4, x == 12 ? 32 : 95, Materials.CORAL);
++                }
++            }
++            case 4 -> {
++                callouts(s, "Turbine Hall", "Pump House", "Cable Trench", 20, 22, 108, 105, 62, 14);
++                facade(s, 12, 10, 10, 14, Materials.TRIM_BLUE, "TURBINE");
++                facade(s, 103, 10, 98, 12, Materials.TRIM_RED, "PUMPS");
++                for (int z : new int[]{14, 111}) {
++                    DecorRecipes.pipe(s, 36, 8.7f, z, 56, true, Materials.COPPER);
++                    DecorRecipes.pipe(s, 36, 9.4f, z, 56, true, Materials.STEEL);
++                }
++                for (int z = 30; z <= 96; z += 22) {
++                    panel(s, 7.9f, 6, z, false, Materials.TRIM_BLUE);
++                    panel(s, 119.8f, 6, z, false, Materials.TRIM_RED);
++                }
++            }
++            case 5 -> {
++                callouts(s, "Corner Cafe", "Apartments", "Service Alley", 20, 22, 108, 22, 20, 108);
++                facade(s, 12, 12, 10, 14, Materials.BRICK_TEAL, "CAFE");
++                facade(s, 102, 14, 10, 14, Materials.BRICK_BURGUNDY, "HOTEL");
++                DecorRecipes.awning(s, 11, 8.5f, 28, 16, Materials.ROOF_TEAL);
++                DecorRecipes.awning(s, 101, 8.5f, 28, 16, Materials.TRIM_RED);
++                DecorRecipes.flowers(s, 12, 7, 9.7f, Materials.CANDY_PINK);
++                DecorRecipes.flowers(s, 102, 9, 9.7f, Materials.SUNNY);
++            }
++            case 6 -> {
++                callouts(s, "Tea House", "Garden Pavilion", "Lantern Walk", 20, 22, 108, 105, 22, 96);
++                facade(s, 12, 9, 10, 13, Materials.WOOD_DARK, "TEA HOUSE");
++                facade(s, 102, 9, 98, 13, Materials.WOOD_DARK, "GARDEN");
++                for (int z : new int[]{18, 100}) for (int x : new int[]{12, 102}) {
++                    DecorRecipes.flowers(s, x, 3.7f, z + 13, Materials.CORAL);
++                    DecorRecipes.fence(s, x, 3, z + 16, 12, Materials.WOOD_DARK);
++                }
++            }
++            case 7 -> {
++                callouts(s, "Crusher", "Dispatch", "Aggregate Yard", 20, 22, 108, 105, 66, 114);
++                facade(s, 12, 10, 10, 13, Materials.HAZARD, "CRUSHER");
++                facade(s, 103, 10, 103, 12, Materials.TRIM_BLUE, "DISPATCH");
++                for (int x : new int[]{13, 101}) {
++                    DecorRecipes.vent(s, x, 7, 9.8f);
++                    DecorRecipes.pipe(s, x, 10, 10, 14, false, Materials.RUST);
++                }
++                DecorRecipes.sign(s, 54, 11, 9.8f, "AGGREGATE", .26f, Materials.HAZARD);
++            }
++            case 8 -> {
++                callouts(s, "Flight Control", "Fuel Annex", "Docking Tower", 20, 22, 108, 105, 64, 64);
++                facade(s, 12, 11, 10, 13, Materials.TRIM_BLUE, "CONTROL");
++                facade(s, 103, 11, 100, 12, Materials.TRIM_RED, "FUEL");
++                for (int z : new int[]{18, 92}) for (int x : new int[]{30, 76}) {
++                    panel(s, x + 2, 7.5f, z - .15f, true, Materials.TRIM_BLUE);
++                    DecorRecipes.vent(s, x + 16, 8, z - .15f);
++                }
++                DecorRecipes.sign(s, 56, 12.2f, 9.8f, "LAUNCH", .3f, Materials.TRIM_BLUE);
++            }
++            case 9 -> {
++                callouts(s, "Canal Cafe", "Clock House", "Fountain", 20, 22, 108, 105, 64, 64);
++                facade(s, 12, 12, 10, 13, Materials.BRICK_TEAL, "CAFE");
++                facade(s, 102, 12, 98, 13, Materials.BRICK_BURGUNDY, "CLOCK");
++                for (int x : new int[]{10, 100}) {
++                    DecorRecipes.awning(s, x + 1, 8.5f, 28, 16, Materials.ROOF_TEAL);
++                    DecorRecipes.awning(s, x + 1, 8.5f, 116, 16, Materials.TRIM_RED);
++                    DecorRecipes.flowers(s, x + 2, 7, 9.7f, Materials.CANDY_PINK);
++                    DecorRecipes.flowers(s, x + 2, 7, 97.7f, Materials.CORAL);
++                }
++            }
++            case 10 -> {
++                callouts(s, "Signal House", "Engine Shed", "Rail Junction", 20, 18, 108, 106, 64, 64);
++                facade(s, 12, 11, 8, 13, Materials.TRIM_BLUE, "SIGNAL");
++                facade(s, 102, 11, 102, 13, Materials.TRIM_RED, "ENGINES");
++                for (int z : new int[]{28, 48, 78, 98}) {
++                    DecorRecipes.sign(s, 8, 9.3f, z - .2f, "RAIL", .18f, Materials.HAZARD);
++                }
++                cargoDetails(s, 32, 28, 18); cargoDetails(s, 82, 78, 18);
++            }
++            case 11 -> {
++                callouts(s, "Casting House", "Slag Yard", "Foundry", 20, 22, 108, 106, 64, 64);
++                facade(s, 12, 11, 10, 13, Materials.TRIM_RED, "CASTING");
++                facade(s, 102, 11, 103, 13, Materials.HAZARD, "SLAG");
++                for (int x : new int[]{12, 101}) {
++                    DecorRecipes.pipe(s, x, 12, 14, 15, false, Materials.COPPER);
++                    DecorRecipes.vent(s, x + 3, 8, 9.8f);
++                }
++                DecorRecipes.sign(s, 53, 10.2f, 48.8f, "FOUNDRY", .3f, Materials.TRIM_RED);
++            }
++            case 12 -> {
++                callouts(s, "West Lodge", "East Lodge", "Frozen Keep", 20, 22, 108, 106, 64, 64);
++                facade(s, 12, 12, 10, 13, Materials.TRIM_BLUE, "LODGE");
++                facade(s, 102, 12, 98, 13, Materials.TRIM_RED, "GUARD");
++                for (int x : new int[]{43, 84}) for (int z : new int[]{43, 83}) {
++                    s.box(x, 9, z, 1.2f, 5, .15f, Materials.TRIM_BLUE);
++                    s.box(x + .2f, 9.2f, z - .02f, .8f, .35f, .16f, Materials.SUNNY);
++                }
++            }
++            case 13 -> {
++                callouts(s, "Power House", "Maintenance", "Panel Field", 20, 22, 108, 106, 64, 90);
++                facade(s, 12, 10, 10, 13, Materials.TRIM_BLUE, "POWER");
++                facade(s, 102, 10, 99, 13, Materials.TRIM_RED, "SERVICE");
++                for (int x : new int[]{9, 111}) for (int z : new int[]{35, 91}) {
++                    panel(s, x, 5.5f, z - .2f, true, Materials.TRIM_BLUE);
++                }
++                DecorRecipes.sign(s, 56, 9, 47.8f, "CONTROL", .25f, Materials.TRIM_BLUE);
++            }
++            default -> {
++                callouts(s, "Barracks", "Generator Annex", "Supply Court", 20, 22, 108, 106, 64, 115);
++                facade(s, 12, 10, 10, 13, Materials.TRIM_BLUE, "BARRACKS");
++                facade(s, 102, 10, 100, 13, Materials.TRIM_RED, "GENERATOR");
++                for (int z : new int[]{30, 72, 98}) {
++                    DecorRecipes.pipe(s, 31, 9.9f, z, 8, false, Materials.COPPER);
++                    DecorRecipes.pipe(s, 88, 9.9f, z, 8, false, Materials.COPPER);
++                }
++            }
++        }
++        spawnFittings(s, layout);
++    }
++
++    private static void harbor(MapBuilder b) {
++        workshop(b, 10, 10, 19, 23, 9, Materials.BRICK_WHITE, Materials.TRIM_BLUE);
++        workshop(b, 100, 96, 19, 22, 9, Materials.BRICK_WHITE, Materials.TRIM_RED);
++        workshop(b, 101, 10, 18, 23, 7, Materials.PAINT_BLUE, Materials.PANEL_GREY);
++        canopy(b, 10, 96, 20, 21, 8, Materials.STEEL, Materials.PAINT_RED);
++        b.container(12, G, 102, true, 14, Materials.PAINT_BLUE);
++        b.container(63, G, 9, true, 24, Materials.PAINT_RED);
++        b.container(32, G, 111, true, 23, Materials.PAINT_BLUE);
++        b.fill(9, G - 1, 34, 28, G - 1, 44, Materials.ASPHALT);
++        b.fill(99, G - 1, 84, 119, G - 1, 94, Materials.ASPHALT);
++        forklift(b, 16, 37, Materials.SUNNY);
++        forklift(b, 107, 86, Materials.CORAL);
++        for (int x = 34; x < 95; x += 12) {
++            b.fill(x, G, 31, x + 1, G + 2, 31, Materials.STEEL);
++            b.fill(x, G, 97, x + 1, G + 2, 97, Materials.STEEL);
++        }
++        tank(b, 110, 40, 3, 7, Materials.PANEL_GREY, Materials.TRIM_BLUE);
++        beamGate(b, 57, 112, 18, 10, Materials.STEEL, Materials.HAZARD);
++    }
++
++    private static void arctic(MapBuilder b) {
++        workshop(b, 10, 10, 19, 21, 9, Materials.SNOW, Materials.TRIM_BLUE);
++        workshop(b, 100, 98, 19, 20, 9, Materials.SNOW, Materials.TRIM_RED);
++        workshop(b, 100, 10, 19, 22, 7, Materials.SNOW, Materials.ROOF_TEAL);
++        workshop(b, 10, 98, 19, 20, 7, Materials.SNOW, Materials.ROOF_TEAL);
++        b.fill(8, G - 1, 33, 29, G - 1, 43, Materials.CONCRETE);
++        b.fill(99, G - 1, 85, 120, G - 1, 95, Materials.CONCRETE);
++        trackedVehicle(b, 12, 36, Materials.CORAL);
++        trackedVehicle(b, 105, 87, Materials.PAINT_BLUE);
++        for (int x : new int[]{34, 83}) {
++            tank(b, x + 5, 10, 3, 5, Materials.SNOW, Materials.TRIM_BLUE);
++            tank(b, x + 5, 117, 3, 5, Materials.SNOW, Materials.TRIM_RED);
++        }
++        for (int[] p : new int[][]{{7,38},{115,38},{7,89},{115,89}}) {
++            rocks(b, p[0], p[1], Materials.ICE, Materials.SNOW);
++        }
++        antenna(b, 19, 21, 14, Materials.TRIM_BLUE);
++        antenna(b, 109, 108, 14, Materials.TRIM_RED);
++        bench(b, 39, 48, 10, Materials.WOOD_LIGHT, Materials.STEEL);
++        bench(b, 79, 80, 10, Materials.WOOD_LIGHT, Materials.STEEL);
++    }
++
++    private static void metro(MapBuilder b) {
++        workshop(b, 10, 10, 19, 20, 8, Materials.BRICK_WHITE, Materials.TRIM_BLUE);
++        workshop(b, 100, 98, 19, 20, 8, Materials.BRICK_WHITE, Materials.TRIM_RED);
++        workshop(b, 100, 10, 19, 20, 8, Materials.BRICK_TEAL, Materials.FRAME_LIGHT);
++        workshop(b, 10, 98, 19, 20, 8, Materials.BRICK_BURGUNDY, Materials.FRAME_LIGHT);
++        arcade(b, 32, 7, 64, 9, 9, Materials.PLASTER, Materials.TRIM_BLUE);
++        arcade(b, 32, 113, 64, 9, 9, Materials.PLASTER, Materials.TRIM_RED);
++        for (int x : new int[]{34, 74}) {
++            bench(b, x, 24, 15, Materials.PAINT_BLUE, Materials.STEEL);
++            bench(b, x, 101, 15, Materials.PAINT_RED, Materials.STEEL);
++        }
++        beamGate(b, 56, 35, 19, 9, Materials.STEEL, Materials.TRIM_BLUE);
++        beamGate(b, 56, 92, 19, 9, Materials.STEEL, Materials.TRIM_RED);
++        for (int z : new int[]{36, 85}) {
++            b.fill(4, G - 1, z + 1, 123, G - 1, z + 1, Materials.STEEL);
++            b.fill(4, G - 1, z + 5, 123, G - 1, z + 5, Materials.STEEL);
++            for (int x = 7; x < 122; x += 4) b.fill(x, G - 1, z, x, G - 1, z + 6, Materials.WOOD_DARK);
++        }
++        for (int z : new int[]{18, 96}) {
++            cabinet(b, 7, z, Materials.PAINT_BLUE); cabinet(b, 116, z, Materials.PAINT_RED);
++        }
++    }
++
++    private static void canyon(MapBuilder b) {
++        workshop(b, 10, 10, 19, 22, 9, Materials.SAND_LIGHT, Materials.ROOF_TEAL);
++        workshop(b, 100, 98, 19, 20, 9, Materials.SAND_LIGHT, Materials.TRIM_RED);
++        workshop(b, 100, 10, 19, 22, 7, Materials.BRICK_TAN, Materials.WOOD_DARK);
++        workshop(b, 10, 98, 19, 20, 7, Materials.BRICK_TAN, Materials.WOOD_DARK);
++        canopy(b, 8, 34, 19, 9, 6, Materials.WOOD_DARK, Materials.ROOF_TEAL);
++        canopy(b, 101, 85, 19, 9, 6, Materials.WOOD_DARK, Materials.TRIM_RED);
++        bench(b, 11, 39, 11, Materials.WOOD_LIGHT, Materials.WOOD_DARK);
++        bench(b, 105, 89, 11, Materials.WOOD_LIGHT, Materials.WOOD_DARK);
++        beamGate(b, 55, 114, 19, 10, Materials.SANDSTONE, Materials.WOOD_DARK);
++        for (int x : new int[]{34, 82}) {
++            rocks(b, x, 7, Materials.SANDSTONE, Materials.SAND_LIGHT);
++            rocks(b, x, 113, Materials.SANDSTONE, Materials.SAND_LIGHT);
++        }
++        for (int[] p : new int[][]{{7,42},{119,42},{7,86},{119,86}}) {
++            b.palm(p[0], G, p[1], 10);
++        }
++        b.fill(54, G, 33, 57, G + 2, 37, Materials.WOOD_DARK);
++        b.fill(71, G, 44, 75, G + 2, 48, Materials.WOOD_DARK);
++        b.fill(52, G + 8, 28, 76, G + 8, 28, Materials.ROOF_TEAL);
++    }
++
++    private static void reactor(MapBuilder b) {
++        workshop(b, 10, 10, 19, 22, 9, Materials.PANEL_GREY, Materials.TRIM_BLUE);
++        workshop(b, 100, 98, 19, 20, 9, Materials.PANEL_GREY, Materials.TRIM_RED);
++        workshop(b, 100, 10, 19, 22, 7, Materials.CONCRETE, Materials.TRIM_BLUE);
++        workshop(b, 10, 98, 19, 20, 7, Materials.CONCRETE, Materials.TRIM_RED);
++        for (int x : new int[]{36, 84}) {
++            tank(b, x, 12, 4, 9, Materials.PANEL_GREY, Materials.ROOF_TEAL);
++            tank(b, x + 5, 116, 4, 9, Materials.PANEL_GREY, Materials.TRIM_RED);
++        }
++        for (int z : new int[]{35, 88}) {
++            cabinet(b, 12, z, Materials.TRIM_BLUE); cabinet(b, 109, z, Materials.TRIM_RED);
++        }
++        beamGate(b, 52, 11, 24, 11, Materials.STEEL, Materials.HAZARD);
++        beamGate(b, 52, 115, 24, 11, Materials.STEEL, Materials.HAZARD);
++        for (int z = 8; z < 120; z += 14) {
++            b.fill(5, G, z, 7, G + 10, z + 2, Materials.PANEL_GREY);
++            b.fill(120, G, z, 122, G + 10, z + 2, Materials.PANEL_GREY);
++        }
++        b.fill(36, G, 25, 39, G + 2, 29, Materials.PANEL_GREY);
++        b.fill(84, G, 99, 89, G + 2, 101, Materials.PANEL_GREY);
++    }
++
++    private static void rooftops(MapBuilder b) {
++        workshop(b, 10, 10, 19, 20, 11, Materials.BRICK_TEAL, Materials.PLASTER);
++        workshop(b, 100, 10, 19, 20, 13, Materials.BRICK_BURGUNDY, Materials.PLASTER);
++        workshop(b, 10, 100, 19, 18, 10, Materials.BRICK_ORANGE, Materials.PLASTER);
++        for (int x : new int[]{32, 78}) {
++            b.fill(x, G - 1, 9, x + 18, G - 1, 23, Materials.ASPHALT);
++            car(b, x + 2, 12, x == 32 ? Materials.CORAL : Materials.SKY_BLUE);
++            planter(b, x + 1, 105, 8, 5, Materials.BRICK_WHITE);
++        }
++        b.fill(8, G - 1, 32, 26, G - 1, 45, Materials.TILE_FLOOR);
++        b.fill(101, G - 1, 32, 119, G - 1, 45, Materials.TILE_FLOOR);
++        planter(b, 10, 34, 8, 7, Materials.PLASTER);
++        planter(b, 110, 35, 8, 7, Materials.PLASTER);
++        canopy(b, 53, 7, 21, 5, 9, Materials.PLASTER, Materials.ROOF_TEAL);
++        b.fill(34, G - 1, 112, 73, G - 1, 117, Materials.ASPHALT);
++        car(b, 46, 113, Materials.PAINT_RED);
++        for (int[] p : new int[][]{{36,36},{84,36},{36,78},{84,78}}) {
++            b.fill(p[0], G, p[1], p[0] + 3, G + 1, p[1] + 2, Materials.WOOD_DARK);
++        }
++    }
++
++    private static void garden(MapBuilder b) {
++        pavilion(b, 10, 10, 19, 22, Materials.WOOD_LIGHT, Materials.ROOF_TEAL);
++        pavilion(b, 100, 98, 19, 20, Materials.WOOD_LIGHT, Materials.ROOF_TEAL);
++        pavilion(b, 100, 10, 19, 22, Materials.PLASTER, Materials.ROOF_TILE);
++        pavilion(b, 10, 98, 19, 20, Materials.PLASTER, Materials.ROOF_TILE);
++        for (int[] p : new int[][]{{9,36},{108,37},{10,88},{107,88},{42,10},{79,113}}) {
++            planter(b, p[0], p[1], 10, 6, Materials.STONE_LIGHT);
++            bambooGrove(b, p[0] + 2, p[1] + 2);
++        }
++        beamGate(b, 54, 12, 20, 9, Materials.PAINT_RED, Materials.WOOD_DARK);
++        beamGate(b, 54, 114, 20, 9, Materials.PAINT_RED, Materials.WOOD_DARK);
++        bench(b, 34, 108, 14, Materials.WOOD_LIGHT, Materials.STONE_LIGHT);
++        bench(b, 80, 17, 14, Materials.WOOD_LIGHT, Materials.STONE_LIGHT);
++        for (int[] p : new int[][]{{35,73},{90,76},{57,94},{71,26}}) {
++            rocks(b, p[0], p[1], Materials.STONE_LIGHT, Materials.STONE);
++        }
++    }
++
++    private static void quarry(MapBuilder b) {
++        workshop(b, 10, 10, 15, 20, 9, Materials.PANEL_GREY, Materials.HAZARD);
++        workshop(b, 103, 103, 16, 15, 9, Materials.PANEL_GREY, Materials.TRIM_BLUE);
++        canopy(b, 103, 10, 16, 27, 10, Materials.STEEL, Materials.HAZARD);
++        canopy(b, 10, 90, 15, 28, 10, Materials.STEEL, Materials.HAZARD);
++        b.fill(106, G, 18, 115, G + 5, 25, Materials.CONCRETE_DARK);
++        b.fill(13, G, 104, 21, G + 5, 112, Materials.CONCRETE_DARK);
++        b.fill(106, G + 6, 16, 115, G + 7, 27, Materials.HAZARD);
++        b.fill(13, G + 6, 102, 21, G + 7, 114, Materials.HAZARD);
++        for (int x : new int[]{36, 76}) {
++            rocks(b, x, 7, Materials.STONE, Materials.STONE_LIGHT);
++            rocks(b, x, 113, Materials.STONE_LIGHT, Materials.SANDSTONE);
++        }
++        beamGate(b, 52, 10, 22, 11, Materials.STEEL, Materials.HAZARD);
++        trackedVehicle(b, 11, 37, Materials.SUNNY);
++        trackedVehicle(b, 106, 83, Materials.SUNNY);
++        b.fill(36, G - 1, 113, 96, G - 1, 122, Materials.DIRT);
++        for (int x = 42; x < 90; x += 12) {
++            b.fill(x, G, 117, x + 7, G + 2, 120, Materials.STONE_LIGHT);
++        }
++    }
++
++    private static void orbital(MapBuilder b) {
++        workshop(b, 10, 10, 17, 23, 10, Materials.PLASTER, Materials.TRIM_BLUE);
++        workshop(b, 101, 100, 18, 18, 10, Materials.PLASTER, Materials.TRIM_RED);
++        workshop(b, 101, 10, 18, 23, 8, Materials.PANEL_GREY, Materials.ROOF_TEAL);
++        workshop(b, 10, 98, 17, 20, 8, Materials.PANEL_GREY, Materials.ROOF_TEAL);
++        beamGate(b, 53, 10, 22, 12, Materials.PLASTER, Materials.TRIM_BLUE);
++        beamGate(b, 53, 117, 22, 12, Materials.PLASTER, Materials.TRIM_RED);
++        for (int x : new int[]{34, 88}) {
++            tank(b, x, 10, 3, 7, Materials.PLASTER, Materials.TRIM_BLUE);
++            tank(b, x, 117, 3, 7, Materials.PLASTER, Materials.TRIM_RED);
++        }
++        for (int[] p : new int[][]{{13,35},{105,35},{13,88},{105,91}}) {
++            cabinet(b, p[0], p[1], Materials.ROOF_TEAL);
++        }
++        // Dock arms have real recessed service carts and alignment strips.
++        for (int[] p : new int[][]{{34,22},{80,22},{34,96},{80,96}}) {
++            b.fill(p[0], G, p[1], p[0] + 4, G + 1, p[1] + 3, Materials.PANEL_GREY);
++            b.fill(p[0], G + 2, p[1], p[0] + 4, G + 2, p[1], Materials.PAINT_BLUE);
++        }
++        b.fill(8, G - 1, 34, 119, G - 1, 34, Materials.SUNNY);
++        b.fill(8, G - 1, 91, 119, G - 1, 91, Materials.SUNNY);
++    }
++
++    private static void plaza(MapBuilder b) {
++        workshop(b, 10, 10, 19, 20, 11, Materials.BRICK_TEAL, Materials.PLASTER);
++        workshop(b, 100, 98, 19, 20, 11, Materials.BRICK_BURGUNDY, Materials.PLASTER);
++        workshop(b, 100, 10, 19, 20, 9, Materials.BRICK_ORANGE, Materials.PLASTER);
++        workshop(b, 10, 98, 19, 20, 9, Materials.BRICK_TAN, Materials.PLASTER);
++        arcade(b, 34, 7, 60, 7, 8, Materials.PLASTER, Materials.ROOF_TILE);
++        arcade(b, 34, 115, 60, 7, 8, Materials.PLASTER, Materials.ROOF_TILE);
++        for (int[] p : new int[][]{{10,35},{108,35},{10,87},{108,87}}) {
++            planter(b, p[0], p[1], 10, 7, Materials.PLASTER);
++        }
++        bench(b, 36, 22, 16, Materials.WOOD_LIGHT, Materials.STONE_LIGHT);
++        bench(b, 76, 104, 16, Materials.WOOD_LIGHT, Materials.STONE_LIGHT);
++        for (int x : new int[]{53, 73}) {
++            b.fill(x, G, 55, x + 2, G + 2, 57, Materials.STONE_LIGHT);
++            b.fill(x, G, 71, x + 2, G + 2, 73, Materials.STONE_LIGHT);
++        }
++        b.fill(108, G + 12, 105, 112, G + 20, 109, Materials.PLASTER);
++        b.fill(108, G + 17, 104, 112, G + 20, 104, Materials.TRIM_BLUE);
++        b.set(110, G + 19, 103, Materials.SUNNY);
++    }
++
++    private static void railway(MapBuilder b) {
++        workshop(b, 10, 8, 19, 16, 10, Materials.BRICK_TAN, Materials.TRIM_BLUE);
++        workshop(b, 100, 102, 19, 17, 10, Materials.BRICK_TAN, Materials.TRIM_RED);
++        workshop(b, 100, 8, 19, 16, 8, Materials.BRICK_WHITE, Materials.ROOF_TEAL);
++        workshop(b, 10, 106, 19, 13, 8, Materials.BRICK_WHITE, Materials.ROOF_TEAL);
++        canopy(b, 34, 8, 20, 12, 7, Materials.STEEL, Materials.TRIM_BLUE);
++        canopy(b, 74, 109, 20, 12, 7, Materials.STEEL, Materials.TRIM_RED);
++        for (int z : new int[]{28, 48, 78, 98}) {
++            for (int x : new int[]{7, 118}) {
++                b.fill(x, G, z, x + 1, G + 8, z + 1, Materials.STEEL);
++                b.fill(x - 1, G + 8, z, x + 2, G + 9, z + 1, Materials.HAZARD);
++            }
++            b.fill(4, G - 1, z + 1, 123, G - 1, z + 1, Materials.STEEL);
++            b.fill(4, G - 1, z + 4, 123, G - 1, z + 4, Materials.STEEL);
++        }
++        forklift(b, 37, 12, Materials.SUNNY);
++        forklift(b, 80, 114, Materials.SUNNY);
++        bench(b, 34, 67, 12, Materials.WOOD_LIGHT, Materials.STEEL);
++        bench(b, 80, 67, 12, Materials.WOOD_LIGHT, Materials.STEEL);
++        cabinet(b, 12, 36, Materials.PAINT_BLUE);
++        cabinet(b, 110, 85, Materials.PAINT_RED);
++    }
++
++    private static void forge(MapBuilder b) {
++        workshop(b, 10, 10, 19, 20, 10, Materials.STONE, Materials.TRIM_RED);
++        workshop(b, 100, 103, 19, 15, 10, Materials.STONE, Materials.HAZARD);
++        workshop(b, 100, 10, 19, 20, 8, Materials.CONCRETE_DARK, Materials.HAZARD);
++        workshop(b, 10, 103, 19, 15, 8, Materials.CONCRETE_DARK, Materials.TRIM_RED);
++        for (int x : new int[]{36, 83}) {
++            tank(b, x + 4, 12, 4, 10, Materials.STEEL, Materials.RUST);
++            tank(b, x + 4, 115, 4, 10, Materials.STEEL, Materials.RUST);
++        }
++        for (int x : new int[]{13, 108}) {
++            b.fill(x, G + 8, 16, x + 3, G + 23, 19, Materials.BRICK);
++            b.fill(x - 1, G + 23, 15, x + 4, G + 24, 20, Materials.STEEL);
++        }
++        for (int[] p : new int[][]{{7,42},{114,42},{7,84},{114,84}}) {
++            rocks(b, p[0], p[1], Materials.STONE, Materials.CONCRETE_DARK);
++        }
++        beamGate(b, 56, 13, 17, 11, Materials.STEEL, Materials.HAZARD);
++        beamGate(b, 56, 114, 17, 11, Materials.STEEL, Materials.HAZARD);
++        b.fill(52, G + 7, 49, 76, G + 7, 49, Materials.TRIM_RED);
++        b.fill(52, G + 7, 79, 76, G + 7, 79, Materials.TRIM_RED);
++    }
++
++    private static void citadel(MapBuilder b) {
++        workshop(b, 10, 10, 19, 22, 11, Materials.STONE_LIGHT, Materials.TRIM_BLUE);
++        workshop(b, 100, 98, 19, 20, 11, Materials.STONE_LIGHT, Materials.TRIM_RED);
++        pavilion(b, 100, 10, 19, 22, Materials.SNOW, Materials.ROOF_BLUE);
++        pavilion(b, 10, 98, 19, 20, Materials.SNOW, Materials.ROOF_BLUE);
++        for (int[] p : new int[][]{{7,36},{115,36},{7,87},{115,87}}) {
++            rocks(b, p[0], p[1], Materials.ICE, Materials.SNOW);
++        }
++        beamGate(b, 54, 12, 20, 12, Materials.STONE_LIGHT, Materials.TRIM_BLUE);
++        beamGate(b, 54, 114, 20, 12, Materials.STONE_LIGHT, Materials.TRIM_RED);
++        for (int x : new int[]{34, 87}) {
++            b.pillar(x, G, 12, 10, 3, Materials.ICE);
++            b.cone(x, G + 10, 12, 4, 5, Materials.ROOF_BLUE);
++            b.pillar(x, G, 115, 10, 3, Materials.ICE);
++            b.cone(x, G + 10, 115, 4, 5, Materials.ROOF_BLUE);
++        }
++        bench(b, 44, 23, 11, Materials.WOOD_LIGHT, Materials.STONE_LIGHT);
++        bench(b, 74, 103, 11, Materials.WOOD_LIGHT, Materials.STONE_LIGHT);
++        for (int x = 46; x < 85; x += 6) {
++            b.fill(x, G + 11, 38, x + 2, G + 12, 39, Materials.STONE_LIGHT);
++            b.fill(x, G + 11, 89, x + 2, G + 12, 90, Materials.STONE_LIGHT);
++        }
++    }
++
++    private static void solar(MapBuilder b) {
++        workshop(b, 10, 10, 19, 22, 9, Materials.PLASTER, Materials.TRIM_BLUE);
++        workshop(b, 100, 99, 19, 19, 9, Materials.PLASTER, Materials.TRIM_RED);
++        canopy(b, 100, 10, 19, 22, 8, Materials.STEEL, Materials.ROOF_TEAL);
++        canopy(b, 10, 99, 19, 19, 8, Materials.STEEL, Materials.ROOF_TEAL);
++        for (int x : new int[]{9, 111}) for (int z : new int[]{35, 91}) {
++            cabinet(b, x, z, Materials.TRIM_BLUE);
++        }
++        tank(b, 19, 110, 4, 6, Materials.PLASTER, Materials.TRIM_BLUE);
++        tank(b, 109, 21, 4, 6, Materials.PLASTER, Materials.TRIM_RED);
++        car(b, 13, 36, Materials.CORAL); car(b, 103, 85, Materials.SKY_BLUE);
++        for (int x : new int[]{37, 80}) {
++            rocks(b, x, 7, Materials.SANDSTONE, Materials.SAND_LIGHT);
++            rocks(b, x, 116, Materials.SANDSTONE, Materials.SAND_LIGHT);
++        }
++        beamGate(b, 53, 10, 22, 10, Materials.PLASTER, Materials.TRIM_BLUE);
++        beamGate(b, 53, 117, 22, 10, Materials.PLASTER, Materials.TRIM_RED);
++        for (int z = 22; z <= 106; z += 14) for (int x : new int[]{32, 72}) {
++            b.fill(x, G - 1, z - 1, x + 24, G - 1, z - 1, Materials.CONCRETE);
++            b.fill(x, G, z + 2, x + 24, G, z + 2, Materials.STEEL);
++        }
++    }
++
++    private static void bunker(MapBuilder b) {
++        workshop(b, 10, 10, 17, 23, 9, Materials.CONCRETE, Materials.TRIM_BLUE);
++        workshop(b, 101, 100, 18, 18, 9, Materials.CONCRETE, Materials.TRIM_RED);
++        workshop(b, 101, 10, 18, 23, 7, Materials.CONCRETE_DARK, Materials.HAZARD);
++        workshop(b, 10, 98, 17, 20, 7, Materials.CONCRETE_DARK, Materials.HAZARD);
++        for (int z : new int[]{35, 88}) {
++            cabinet(b, 12, z, Materials.TRIM_BLUE); cabinet(b, 109, z, Materials.TRIM_RED);
++        }
++        for (int z : new int[]{31, 51, 72, 92}) {
++            b.fill(28, G, z, 30, G + 7, z + 1, Materials.STEEL);
++            b.fill(98, G, z, 100, G + 7, z + 1, Materials.STEEL);
++            b.fill(29, G + 7, z, 43, G + 7, z + 1, Materials.STEEL);
++            b.fill(84, G + 7, z, 99, G + 7, z + 1, Materials.STEEL);
++        }
++        canopy(b, 34, 7, 18, 9, 7, Materials.STEEL, Materials.CANVAS);
++        canopy(b, 76, 112, 18, 9, 7, Materials.STEEL, Materials.CANVAS);
++        b.sandbags(34, G, 14, true, 18, 2);
++        b.sandbags(76, G, 112, true, 18, 2);
++        trackedVehicle(b, 38, 8, Materials.CANVAS);
++        trackedVehicle(b, 79, 115, Materials.CANVAS);
++        bench(b, 32, 78, 9, Materials.WOOD_LIGHT, Materials.STEEL);
++        bench(b, 88, 46, 8, Materials.WOOD_LIGHT, Materials.STEEL);
++    }
++
++    /** The back edge and shoulders frame the team court while the forward face stays open. */
++    public static void spawnCourt(MapBuilder b, int layout, int x0, int x1, int team) {
++        boolean west = x0 < 64;
++        int edge = west ? x0 : x1;
++        int start = west ? x0 : x1 - 5;
++        int wall = switch (layout) {
++            case 1, 12 -> Materials.SNOW;
++            case 3, 13 -> Materials.SAND_LIGHT;
++            case 6 -> Materials.WOOD_LIGHT;
++            case 5, 9 -> Materials.PLASTER;
++            default -> Materials.PANEL_GREY;
++        };
++        int cap = switch (layout) {
++            case 3, 6, 9 -> Materials.WOOD_DARK;
++            default -> Materials.STEEL;
++        };
++        // Solid side walls have broad openings; the canopy only covers the back of the court.
++        b.fill(edge, G, 47, edge, G + 8, 81, wall);
++        b.clear(edge, G + 2, 55, edge, G + 5, 59);
++        b.clear(edge, G + 2, 70, edge, G + 5, 74);
++        b.fill(start, G + 8, 47, start + 5, G + 8, 81, cap);
++        b.fill(edge, G + 6, 47, edge, G + 7, 81, team);
++        int shoulder = west ? x0 : x1 - 13;
++        b.fill(shoulder, G, 46, shoulder + 13, G + 5, 46, wall);
++        b.fill(shoulder, G, 82, shoulder + 13, G + 5, 82, wall);
++        b.fill(shoulder, G + 6, 46, shoulder + 13, G + 6, 46, team);
++        b.fill(shoulder, G + 6, 82, shoulder + 13, G + 6, 82, team);
++        int island = west ? 17 : 108;
++        for (int z : new int[]{55, 72}) {
++            b.fill(island, G, z, island + 2, G + 1, z + 1, wall);
++            b.fill(island, G + 2, z, island + 2, G + 2, z + 1, team);
++        }
++        int furniture = west ? 10 : 116;
++        for (int z : new int[]{49, 78}) {
++            b.fill(furniture, G, z, furniture + 1, G + 1, z + 1, cap);
++        }
++    }
++
++    private static void workshop(MapBuilder b, int x, int z, int w, int d, int h, int wall, int trim) {
++        int x1 = x + w - 1, z1 = z + d - 1;
++        b.fill(x - 1, G - 1, z - 1, x1 + 1, G - 1, z1 + 1, Materials.CONCRETE);
++        b.walls(x, G, z, x1, G + h, z1, wall);
++        b.fill(x, G + h, z, x1, G + h, z1, trim);
++        b.fill(x - 1, G + h + 1, z - 1, x1 + 1, G + h + 1, z1 + 1, wall);
++        b.fill(x, G + h + 2, z, x1, G + h + 2, z, trim);
++        b.fill(x, G + h + 2, z1, x1, G + h + 2, z1, trim);
++        for (int corner : new int[]{x, x1}) {
++            b.fill(corner, G, z, corner, G + h - 1, z, Materials.PLASTER);
++            b.fill(corner, G, z1, corner, G + h - 1, z1, Materials.PLASTER);
++        }
++        // Two wide, level doors make each annex a route rather than a dead-end painted box.
++        int cx = x + w / 2;
++        b.fill(cx - 4, G, z, cx + 4, G + 6, z, trim);
++        b.fill(cx - 4, G, z1, cx + 4, G + 6, z1, trim);
++        b.doorway(cx, G, z, 1, 7, 5);
++        b.doorway(cx, G, z1, 1, 7, 5);
++        b.window(x, G + 3, z + d / 2 - 2, x, G + 5, z + d / 2 + 2, true);
++        b.window(x1, G + 3, z + d / 2 - 2, x1, G + 5, z + d / 2 + 2, true);
++        // Wall-mounted equipment and a workbench leave the central doorway axis clear.
++        b.fill(x + 2, G, z + 3, x + 4, G + 1, z + 7, Materials.WOOD_DARK);
++        b.fill(x + 2, G + 2, z + 3, x + 4, G + 2, z + 7, trim);
++        b.fill(x1 - 3, G, z1 - 5, x1 - 2, G + 3, z1 - 2, Materials.PANEL_GREY);
++        b.fill(x1 - 3, G + 2, z1 - 5, x1 - 2, G + 2, z1 - 5, Materials.SCREEN);
++    }
++
++    private static void pavilion(MapBuilder b, int x, int z, int w, int d, int wall, int roof) {
++        workshop(b, x, z, w, d, 8, wall, Materials.WOOD_DARK);
++        b.roof(x - 1, z - 1, x + w, z + d, G + 10, roof);
++        b.clear(x + 4, G + 2, z, x + w - 5, G + 5, z);
++        b.clear(x + 4, G + 2, z + d - 1, x + w - 5, G + 5, z + d - 1);
++        b.fill(x + 3, G, z + 4, x + 3, G + 1, z + d - 5, Materials.WOOD_LIGHT);
++    }
++
++    private static void canopy(MapBuilder b, int x, int z, int w, int d, int h, int post, int roof) {
++        b.fill(x, G - 1, z, x + w - 1, G - 1, z + d - 1, Materials.CONCRETE);
++        for (int px : new int[]{x, x + w - 1}) for (int pz : new int[]{z, z + d - 1}) {
++            b.fill(px, G, pz, px, G + h, pz, post);
++        }
++        b.fill(x - 1, G + h, z - 1, x + w, G + h, z + d, roof);
++        b.fill(x, G + h - 1, z, x + w - 1, G + h - 1, z, post);
++        b.fill(x, G + h - 1, z + d - 1, x + w - 1, G + h - 1, z + d - 1, post);
++    }
++
++    private static void arcade(MapBuilder b, int x, int z, int w, int d, int h, int wall, int trim) {
++        canopy(b, x, z, w, d, h, wall, trim);
++        int back = z < 64 ? z : z + d - 1;
++        b.fill(x, G, back, x + w - 1, G + h, back, wall);
++        b.fill(x, G + 3, back, x + w - 1, G + 4, back, trim);
++        int front = z < 64 ? z + d - 1 : z;
++        for (int px = x; px < x + w; px += 12) b.fill(px, G, front, px + 1, G + h, front, wall);
++    }
++
++    private static void beamGate(MapBuilder b, int x, int z, int width, int height, int post, int cap) {
++        for (int px : new int[]{x, x + width}) b.fill(px, G, z, px + 1, G + height, z + 1, post);
++        b.fill(x - 1, G + height, z - 1, x + width + 2, G + height + 1, z + 2, cap);
++    }
++
++    private static void bench(MapBuilder b, int x, int z, int width, int seat, int base) {
++        b.fill(x, G, z, x + 1, G, z + 1, base);
++        b.fill(x + width - 2, G, z, x + width - 1, G, z + 1, base);
++        b.fill(x, G + 1, z, x + width - 1, G + 1, z + 1, seat);
++        b.fill(x, G + 2, z + 1, x + width - 1, G + 2, z + 1, seat);
++    }
++
++    private static void planter(MapBuilder b, int x, int z, int w, int d, int rim) {
++        b.fill(x, G, z, x + w - 1, G, z + d - 1, rim);
++        b.fill(x + 1, G + 1, z + 1, x + w - 2, G + 1, z + d - 2, Materials.GRASS_BRIGHT);
++        int cx = x + w / 2, cz = z + d / 2;
++        b.fill(cx, G + 2, cz, cx, G + 5, cz, Materials.TRUNK);
++        b.fill(cx - 2, G + 5, cz - 2, cx + 2, G + 8, cz + 2, Materials.LEAVES);
++        b.fill(cx - 1, G + 9, cz - 1, cx + 1, G + 9, cz + 1, Materials.GRASS_BRIGHT);
++    }
++
++    private static void rocks(MapBuilder b, int x, int z, int base, int light) {
++        b.fill(x, G, z, x + 5, G + 3, z + 4, base);
++        b.fill(x + 1, G + 4, z + 1, x + 4, G + 6, z + 3, light);
++        b.fill(x + 5, G, z + 2, x + 8, G + 2, z + 6, light);
++    }
++
++    private static void bambooGrove(MapBuilder b, int x, int z) {
++        for (int i = 0; i < 3; i++) {
++            int px = x + i * 2, pz = z + i % 2;
++            b.fill(px, G + 2, pz, px, G + 10 + i, pz, Materials.WOOD_LIGHT);
++            b.fill(px - 1, G + 8 + i, pz - 1, px + 1, G + 10 + i, pz + 1, Materials.LEAVES);
++        }
++    }
++
++    private static void cabinet(MapBuilder b, int x, int z, int trim) {
++        b.fill(x, G, z, x + 6, G + 4, z + 3, Materials.PANEL_GREY);
++        b.fill(x, G, z, x + 6, G, z + 3, trim);
++        b.fill(x + 1, G + 2, z, x + 2, G + 3, z, Materials.SCREEN);
++        b.fill(x + 4, G + 1, z, x + 5, G + 3, z, Materials.DOOR_DARK);
++        b.fill(x, G + 5, z, x + 6, G + 5, z + 3, trim);
++    }
++
++    private static void tank(MapBuilder b, int x, int z, int r, int height, int wall, int trim) {
++        b.pillar(x, G, z, height, r, wall);
++        b.disc(x, G + 1, z, r + 1, trim);
++        b.disc(x, G + height, z, r + 1, trim);
++        b.fill(x, G + height + 1, z, x, G + height + 3, z, Materials.STEEL);
++    }
++
++    private static void antenna(MapBuilder b, int x, int z, int y, int trim) {
++        b.fill(x, G + 11, z, x, G + y + 7, z, Materials.STEEL);
++        b.fill(x - 4, G + y + 5, z, x + 4, G + y + 5, z, trim);
++        b.fill(x - 2, G + y + 7, z, x + 2, G + y + 7, z, Materials.SNOW);
++    }
++
++    private static void car(MapBuilder b, int x, int z, int color) {
++        b.fill(x, G + 1, z, x + 10, G + 2, z + 4, color);
++        b.fill(x + 3, G + 3, z, x + 7, G + 4, z + 4, color);
++        b.fill(x + 3, G + 3, z, x + 7, G + 3, z, Materials.VISOR);
++        b.fill(x + 3, G + 3, z + 4, x + 7, G + 3, z + 4, Materials.VISOR);
++        for (int px : new int[]{x + 1, x + 8}) for (int pz : new int[]{z, z + 4}) {
++            b.fill(px, G, pz, px + 1, G + 1, pz, Materials.RUBBER);
++        }
++    }
++
++    private static void trackedVehicle(MapBuilder b, int x, int z, int color) {
++        b.fill(x, G, z, x + 9, G + 1, z + 1, Materials.RUBBER);
++        b.fill(x, G, z + 5, x + 9, G + 1, z + 6, Materials.RUBBER);
++        b.fill(x + 1, G + 2, z + 1, x + 8, G + 3, z + 5, color);
++        b.fill(x + 3, G + 4, z + 1, x + 6, G + 5, z + 5, color);
++        b.fill(x + 3, G + 4, z, x + 6, G + 4, z, Materials.VISOR);
++    }
++
++    private static void forklift(MapBuilder b, int x, int z, int color) {
++        b.fill(x, G, z, x + 5, G + 1, z + 4, Materials.RUBBER);
++        b.fill(x, G + 2, z, x + 4, G + 3, z + 4, color);
++        b.fill(x + 1, G + 4, z, x + 1, G + 6, z + 4, Materials.STEEL);
++        b.fill(x + 4, G + 4, z, x + 4, G + 6, z + 4, Materials.STEEL);
++        b.fill(x, G + 7, z, x + 5, G + 7, z + 4, color);
++        b.fill(x + 6, G, z + 1, x + 9, G, z + 1, Materials.STEEL);
++        b.fill(x + 6, G, z + 3, x + 9, G, z + 3, Materials.STEEL);
++    }
++
++    private static void facade(MapScenery s, int x, int y, int z, int width, int trim, String name) {
++        s.box(x - 1, y, z - .18f, width + 1, .3f, .3f, trim);
++        s.box(x - 1, y + .3f, z - .08f, .22f, 2, .18f, Materials.FRAME_LIGHT);
++        s.box(x + width - .3f, y + .3f, z - .08f, .22f, 2, .18f, Materials.FRAME_LIGHT);
++        DecorRecipes.sign(s, x + 2, y + .45f, z - .24f, name, .2f, trim);
++        DecorRecipes.vent(s, x, y - 2.4f, z - .2f);
++        DecorRecipes.vent(s, x + width - 2, y - 2.4f, z - .2f);
++    }
++
++    private static void panel(MapScenery s, float x, float y, float z, boolean alongX, int trim) {
++        s.box(x, y, z, alongX ? 6 : .15f, 3, alongX ? .15f : 6, trim);
++        for (int i = 0; i < 4; i++) {
++            s.box(x + (alongX ? .5f : -.02f), y + .45f + i * .5f, z + (alongX ? -.02f : .5f),
++                    alongX ? 4 : .17f, .13f, alongX ? .17f : 4, Materials.FRAME_LIGHT);
++        }
++    }
++
++    private static void cargoDetails(MapScenery s, int x, int z, int length) {
++        for (int i = 2; i < length; i += 3) {
++            s.box(x + i, G + .5f, z - .1f, .12f, 4, .12f, Materials.PANEL_SEAM);
++        }
++        s.box(x + 2, G + 1.4f, z - .16f, 2.5f, 1.4f, .12f, Materials.PLASTER);
++        s.box(x + 2.3f, G + 1.7f, z - .19f, 1.8f, .2f, .06f, Materials.TRIM_BLUE);
++    }
++
++    private static void callouts(MapScenery s, String a, String b, String c,
++                                 int ax, int az, int bx, int bz, int cx, int cz) {
++        s.landmark(a, ax, az, 15); s.landmark(b, bx, bz, 15); s.landmark(c, cx, cz, 18);
++    }
++
++    private static void spawnFittings(MapScenery s, int layout) {
++        for (boolean west : new boolean[]{true, false}) {
++            float x = west ? 9.98f : 118.85f;
++            int trim = west ? Materials.TRIM_BLUE : Materials.TRIM_RED;
++            for (int z : new int[]{49, 77}) {
++                s.box(x, G + 4.2f, z, .16f, .5f, 3, Materials.LAMP);
++                if (layout == 3 || layout == 6 || layout == 9 || layout == 12) {
++                    s.box(x, G + 2, z + 1, .14f, 3.5f, 1.7f, trim);
++                    s.box(x - .025f, G + 4.6f, z + 1.3f, .19f, .3f, 1.1f, Materials.SUNNY);
++                } else panel(s, x, G + 2, z + 1, false, trim);
++            }
++            float capX = west ? 10 : 113;
++            if (layout == 3 || layout == 6 || layout == 9 || layout == 12) {
++                DecorRecipes.flowers(s, capX, G + 9.05f, 50, Materials.CORAL);
++                DecorRecipes.flowers(s, capX, G + 9.05f, 75, Materials.SUNNY);
++            } else {
++                DecorRecipes.pipe(s, capX, G + 7.25f, 48, 31, false, Materials.COPPER);
++            }
++            // Small floor chevrons mark the clear middle exit, without making an obstacle.
++            for (int i = 0; i < 3; i++) {
++                s.box(west ? 24 + i * 2 : 102 - i * 2, G + .015f, 63,
++                        .7f, .015f, 3, trim);
++            }
++        }
++    }
++}
+--- before/app/src/test/java/com/ccs/voxelgun/SceneryTest.java
++++ after/app/src/test/java/com/ccs/voxelgun/SceneryTest.java
+@@ -81,12 +81,11 @@
+         assertEquals("", s.area(90, 90));
+     }
+ 
+-    @Test public void authoredMapsHaveBoundedCalloutsAndOpaqueDecor() {
+-        String[] ids = {"village", "battlefield_alps", "battlefield_city", "battlefield_farmland", "rooftop_district",
+-                "warehouse", "facility", "harbor_yard", "reactor_core", "train_depot",
+-                "orbital_dock", "volcano_forge", "bunker_13"};
+-        for (String id : ids) {
+-            GameMap map = Maps.create(Maps.indexOf(id));
++    @Test public void entireCatalogAndTrainingHaveBoundedCalloutsAndOpaqueDecor() {
++        for (int index = 0; index <= Maps.count(); index++) {
++            GameMap map = index == Maps.count()
++                    ? new com.ccs.voxelgun.map.maps.MovementCourse() : Maps.create(index);
++            String id = map.id();
+             VoxelWorld world = map.build(9);
+             try {
+                 assertTrue(id, map.scenery().landmarks().size() >= 3);
+--- before/docs/arena-expansion.md
++++ after/docs/arena-expansion.md
+@@ -22,7 +22,9 @@
+ 
+ ## 3. Маршрути карт і тренувальна траса
+ 
+-Бойове планування змінено саме на шести картах: **Village, Dust Yard, Facility, Battlefield: City, Battlefield: Farmland та Battlefield: Alps**. Це не повна переробка всього каталогу.
++Початкове оновлення бойових маршрутів охоплювало шість карт: **Village, Dust Yard, Facility, Battlefield: City, Battlefield: Farmland та Battlefield: Alps**. Оновлення оформлення від **13 жовтня 2026 року** охоплює вже весь каталог: **8 класичних арен, 15 додаткових арен, 3 Battlefield-карти та окрему Movement Course**.
++
++Карти отримали щільніші тематичні вулички й дворики, майстерні, торгові та службові споруди, навіси, меблі й укриття. Великі об’єкти входять у воксельну геометрію й беруть участь у зіткненнях; дрібні вивіски, рами та деталі поверхонь залишаються декоративними. Оформлення використовує виразні блокові форми, широкі кольорові смуги та контрастні фасади в дусі Krunker. Пустеля, порт, космічна станція, казкові та природні карти зберігають власні теми. Навколо тренувальної траси з’явилися павільйони й трибуни; самі ворота, перешкоди та версія траси не змінені.
+ 
+ Village отримала зв’язки садових маршрутів, укриття й додаткові підходи до церкви; Dust Yard — переходи між центральним і обхідними шляхами; Facility — поперечні проходи серверної та додатковий доступ до верхнього рівня. На трьох великих Battlefield-картах укриття стоять біля країв доріг, а зміщені екрани біля баз перекривають прямий простріл, залишаючи виходи відкритими. Альпійський рельєф не розрізається новими траншеями.
+ 

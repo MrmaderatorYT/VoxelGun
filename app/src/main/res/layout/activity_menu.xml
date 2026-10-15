@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/menu_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_menu">
+
+    <com.ccs.voxelgun.ui.MenuBackdropView
+        android:id="@+id/menu_backdrop"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_menu_vignette"
+        android:importantForAccessibility="no" />
+
+    <ViewFlipper
+        android:id="@+id/flipper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <include layout="@layout/screen_main" />
+
+        <include layout="@layout/screen_play" />
+
+        <include layout="@layout/screen_arsenal" />
+
+        <include layout="@layout/screen_settings" />
+
+        <include layout="@layout/screen_stats" />
+
+        <include layout="@layout/screen_hud" />
+
+        <include layout="@layout/screen_keys" />
+    </ViewFlipper>
+</FrameLayout>

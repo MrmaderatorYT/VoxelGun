@@ -1,0 +1,25 @@
+
+=== title-a-v1.svg  (6906 bytes)
+viewBox 0 0 640 256 · aspect 2.5 (wide)
+colours 3: #121923 #f1f5f7 #ff8a18 · gradients 0 · anchors 424
+margins L36.1 R44.0 T0.0 B17.4 · bbox fill 0.816
+▲ WARN [complex] 424 anchor points — more than 95% of comparable reference logos (median 75.0). Simplify: fewer points, merged shapes, less detail.
+▲ WARN [near-miss-angle] 12 straight edge(s) are 0.3–3° off a clean angle — they read as mistakes. Snap them: 59.0° (→60°) len 27.2 at (308,30); 121.0° (→120°) len 27.2 at (322,54); 59.0° (→60°) len 27.2 at (336,134); 121.0° (→120°) len 27.2 at (322,111); 59.0° (→60°) len 27.2 at (302,18); 121.0° (→120°) len 27.2 at (316,42) …. (Expected — and fine — for type set on a curve or deliberately rotated elements.)
+production-readiness score: 84/100 (heuristic)
+
+=== title-b-v1.svg  (4666 bytes)
+viewBox 0 0 640 256 · aspect 2.5 (wide)
+colours 3: #121923 #34d5de #f1f5f7 · gradients 0 · anchors 286
+margins L36.1 R50.0 T18.2 B18.0 · bbox fill 0.743
+▲ WARN [near-miss-angle] 8 straight edge(s) are 0.3–3° off a clean angle — they read as mistakes. Snap them: 59.0° (→60°) len 27.2 at (302,18); 121.0° (→120°) len 27.2 at (316,42); 59.0° (→60°) len 27.2 at (330,122); 121.0° (→120°) len 27.2 at (316,99); 59.0° (→60°) len 33.6 at (299,24); 121.0° (→120°) len 33.6 at (316,53) …. (Expected — and fine — for type set on a curve or deliberately rotated elements.)
+· INFO [complexity] 286 anchor points (library median 75.0, p75 155.0). Check every point earns its place.
+production-readiness score: 91/100 (heuristic)
+
+=== title-c-v1.svg  (6892 bytes)
+viewBox 0 0 640 256 · aspect 2.5 (wide)
+colours 3: #121923 #f1f5f7 #b9f142 · gradients 0 · anchors 424
+margins L0.0 R47.0 T18.2 B21.4 · bbox fill 0.783
+▲ WARN [complex] 424 anchor points — more than 95% of comparable reference logos (median 75.0). Simplify: fewer points, merged shapes, less detail.
+▲ WARN [near-miss-angle] 24 straight edge(s) are 0.3–3° off a clean angle — they read as mistakes. Snap them: 121.0° (→120°) len 61.1 at (119,79); 120.8° (→120°) len 120.7 at (185,26); 132.7° (→135°) len 70.6 at (372,26); 132.7° (→135°) len 70.6 at (237,130); 121.0° (→120°) len 61.1 at (115,71); 120.8° (→120°) len 120.7 at (181,18) …. (Expected — and fine — for type set on a curve or deliberately rotated elements.)
+· INFO [off-centre-x] Horizontal margins differ (left 0.0, right 47.0). Intentional optical centring? Otherwise centre it.
+production-readiness score: 83/100 (heuristic)

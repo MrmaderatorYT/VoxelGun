@@ -1,0 +1,22 @@
+
+=== concept-a-v1.svg  (243 bytes)
+viewBox 0 0 256 256 · aspect 1.0 (square)
+colours 1: #111111 · gradients 0 · anchors 15
+margins L24.0 R16.0 T24.0 B56.0 · bbox fill 0.58
+· INFO [off-centre-x] Horizontal margins differ (left 24.0, right 16.0). Intentional optical centring? Otherwise centre it.
+· INFO [off-centre-y] Vertical margins differ (top 24.0, bottom 56.0). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 98/100 (heuristic)
+
+=== concept-b-v1.svg  (301 bytes)
+viewBox 0 0 256 256 · aspect 1.0 (square)
+colours 1: #111111 · gradients 0 · anchors 34
+margins L24.0 R24.0 T40.0 B40.0 · bbox fill 0.559
+✔ no issues found
+production-readiness score: 100/100 (heuristic)
+
+=== concept-c-v1.svg  (273 bytes)
+viewBox 0 0 256 256 · aspect 1.0 (square)
+colours 1: #111111 · gradients 0 · anchors 19
+margins L32.0 R32.0 T32.0 B32.0 · bbox fill 0.562
+✔ no issues found
+production-readiness score: 100/100 (heuristic)

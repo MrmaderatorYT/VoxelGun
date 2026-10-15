@@ -1,0 +1,13 @@
+{
+  "tests": 425,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "suites": 81,
+  "apk_sha256": "54623cd5728ffb0023866d623da78f75d4222f36c601147f08184f5a16bb5245",
+  "catalog_maps": 26,
+  "training_courses": 1,
+  "android_device_validation": "Not run: no connected device",
+  "preview": "CPU render of actual generated geometry and decor; differs from Android lighting",
+  "build_log": "final-build-and-tests.log"
+}

@@ -1,0 +1,9 @@
+Menu background source: actual Voxel Strike Android game render captured on Pixel 7a.
+Selected source: menu-battle-2.png (2400 x 1080).
+Map: battlefield_city, Civic Circle.
+The in-game scene was arranged using real Match combatants, weapons, hitscan attacks and particle effects.
+No AI image, painted additions, compositing, cropping or post-capture color treatment.
+WebP asset: cwebp -q 92 -m 6, original dimensions.
+The complete camera, renderer, actor and GPU metadata is in menu-battle-2.txt.
+Reproducible manual Android capture utility: tools/MenuBattleCapture.java, outside normal source sets.
+Background remains a static image in the menu; no 3D match runs behind the UI.

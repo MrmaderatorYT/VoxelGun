@@ -1,0 +1,44 @@
+
+=== concept-a-v2.svg  (279 bytes)
+viewBox 0 0 256 256 · aspect 1.0 (square)
+colours 1: #111111 · gradients 0 · anchors 15
+margins L20.0 R20.0 T32.0 B40.0 · bbox fill 0.606
+· INFO [off-centre-y] Vertical margins differ (top 32.0, bottom 40.0). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 99/100 (heuristic)
+
+=== concept-b-v2.svg  (301 bytes)
+viewBox 0 0 256 256 · aspect 1.0 (square)
+colours 1: #111111 · gradients 0 · anchors 34
+margins L24.0 R24.0 T40.0 B40.0 · bbox fill 0.559
+✔ no issues found
+production-readiness score: 100/100 (heuristic)
+
+=== concept-c-v2.svg  (279 bytes)
+viewBox 0 0 256 256 · aspect 1.0 (square)
+colours 1: #111111 · gradients 0 · anchors 22
+margins L32.0 R32.0 T32.0 B32.0 · bbox fill 0.562
+✔ no issues found
+production-readiness score: 100/100 (heuristic)
+
+=== concept-a-lockup-v2.svg  (1796 bytes)
+viewBox 0 0 650 256 · aspect 2.539 (horizontal)
+colours 1: #111111 · gradients 0 · anchors 153
+margins L28.8 R41.5 T38.9 B62.6 · bbox fill 0.538
+· INFO [off-centre-y] Vertical margins differ (top 38.9, bottom 62.6). Remember the optical centre sits slightly above the geometric centre.
+production-readiness score: 99/100 (heuristic)
+
+=== concept-b-lockup-v2.svg  (1810 bytes)
+viewBox 0 0 890 256 · aspect 3.477 (horizontal)
+colours 1: #111111 · gradients 0 · anchors 172
+margins L36.2 R45.5 T49.6 B58.6 · bbox fill 0.525
+· INFO [complexity] 172 anchor points (library median 75.0, p75 155.0). Check every point earns its place.
+production-readiness score: 99/100 (heuristic)
+
+=== concept-c-lockup-v2.svg  (1819 bytes)
+viewBox 0 0 680 256 · aspect 2.656 (horizontal)
+colours 1: #111111 · gradients 0 · anchors 160
+margins L42.9 R80.3 T42.9 B51.8 · bbox fill 0.516
+▲ WARN [near-miss-angle] 7 straight edge(s) are 0.3–3° off a clean angle — they read as mistakes. Snap them: 121.0° (→120°) len 52.5 at (303,93); 120.8° (→120°) len 74.5 at (345,48); 132.7° (→135°) len 43.6 at (481,48); 132.7° (→135°) len 43.6 at (404,112); 136.9° (→135°) len 31.5 at (505,158); 137.2° (→135°) len 40.5 at (543,136) …. (Expected — and fine — for type set on a curve or deliberately rotated elements.)
+· INFO [complexity] 160 anchor points (library median 75.0, p75 155.0). Check every point earns its place.
+· INFO [off-centre-x] Horizontal margins differ (left 42.9, right 80.3). Intentional optical centring? Otherwise centre it.
+production-readiness score: 90/100 (heuristic)

@@ -1,0 +1,11 @@
+# JNI uses name-based entry points, so the native facades must not be renamed.
+-keep class com.ccs.voxelgun.voxel.NativeBridge { *; }
+-keep class com.ccs.voxelgun.audio.NativeSynth { *; }
+-keepclasseswithmembernames,includedescriptorclasses class * {
+    native <methods>;
+}
+# Enum valueOf is used when restoring the persisted profile and settings.
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}

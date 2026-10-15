@@ -1,0 +1,468 @@
+--- before/BotBrain.java
++++ app/src/main/java/com/ccs/voxelgun/game/BotBrain.java
+@@ -81,6 +81,10 @@
+     private float stuckTimer;
+     private float lastX;
+     private float lastZ;
++    private float recoveryTime, recoveryX, recoveryZ, recoveryProbeTime;
++    private float hearingCooldown, heardLookTime, investigationTime;
++    private final Vec3 heardPosition = new Vec3();
++    private boolean recoveringPrimary;
+     private int goalNode = -1;
+     /** A failed cached waypoint remains a goal, but cannot spend another search before retry. */
+     private int failedGoalNode = -1;
+@@ -122,6 +126,8 @@
+         this.perceptionTimer = self.id % perceptionPhases
+                 * (perceptionInterval / perceptionPhases);
+         this.navigationProbeTimer = self.id % 5 * (NAVIGATION_PROBE_INTERVAL / 5f);
++        lastX = self.position.x;
++        lastZ = self.position.z;
+     }
+ 
+     public boolean owns(Combatant combatant) {
+@@ -201,6 +207,10 @@
+         combatDecisionTimer = weaponDecisionTimer = searchTimer = 0f;
+         holdPosition = combatCrouch = false;
+         self.crouching = false;
++        stuckTimer = recoveryTime = hearingCooldown = heardLookTime = investigationTime = 0f;
++        recoveringPrimary = false;
++        lastX = self.position.x;
++        lastZ = self.position.z;
+         repathTimer = 0f;
+         float perceptionInterval = perceptionInterval();
+         int perceptionPhases = match.isBattlefield() ? 12 : 6;
+@@ -264,6 +274,19 @@
+         tacticalCooldown -= dt;
+         pushTime -= dt;
+         weaponDecisionTimer -= dt;
++        hearingCooldown -= dt;
++        heardLookTime -= dt;
++        if (state == State.HUNT) {
++            investigationTime -= dt;
++            if (investigationTime <= 0f) {
++                state = State.PATROL;
++                target = null;
++                goalNode = -1;
++                path.clear();
++                goalCooldown = repathTimer = 0f;
++                hearingCooldown = Math.max(hearingCooldown, 2f);
++            }
++        }
+ 
+         perceptionTimer -= dt;
+         perceptionElapsed += dt;
+@@ -303,17 +326,38 @@
+                 patrol(dt);
+                 break;
+         }
++        boolean recoveringThisStep = recoveryTime > 0f;
++        boolean recoveryBlocked = false;
++        if (recoveringThisStep) {
++            recoveryTime -= dt;
++            recoveryProbeTime -= dt;
++            if (recoveryProbeTime <= 0f) {
++                recoveryProbeTime = .1f;
++                if (!BotMovementSafety.canDodge(self, match.world(), recoveryX, recoveryZ, false)) {
++                    recoveryTime = 0f;
++                    recoveryBlocked = true;
++                    desired.set(0f, 0f, 0f);
++                    self.velocity.x = self.velocity.z = 0f;
++                }
++            }
++            if (recoveryTime > 0f) {
++                self.crouching = false;
++                steer(recoveryX, recoveryZ, dt, .75f);
++                if (state == State.PATROL || state == State.HUNT) lookAlongMovement(dt);
++            }
++        }
+         float referenceSpeed = 7.7f * self.weaponType().moveSpeedMultiplier()
+                 * match.movementMultiplier() * match.classMovementMultiplier(self);
+         if (match.objectives() != null && match.objectives().carrierId() == self.id) {
+             referenceSpeed *= .85f;
+         }
+         boolean bhopEnabled = match.modifier(MatchModifier.BUNNY_HOP) && !self.zombie;
+-        if (evasion.steer(self, match.world(), desired, referenceSpeed, bhopEnabled, dt)) {
++        if (recoveringThisStep) evasion.reset();
++        else if (evasion.steer(self, match.world(), desired, referenceSpeed, bhopEnabled, dt)) {
+             match.jump(self, 7.2f);
+             jumpCooldown = .9f;
+         }
+-        if (bhopEnabled) {
++        if (bhopEnabled && !recoveryBlocked) {
+             boolean travel = (state == State.PATROL || state == State.HUNT) && goalNode >= 0;
+             if (travel) {
+                 float gx = match.nav().cellX(goalNode) + .5f - self.position.x;
+@@ -321,11 +365,12 @@
+                 travel = gx * gx + gz * gz > 36f;
+             }
+             bhop.update(self, match.world(), desired.x, desired.z, referenceSpeed,
+-                    style != BotCombatStyle.SNIPER && (travel || evasion.active()), dt);
++                    !recoveringThisStep && style != BotCombatStyle.SNIPER
++                            && (travel || evasion.active()), dt);
+         } else {
+             bhop.reset();
+         }
+-        BotCrowdAvoidance.separate(self, match.combatants(), match.world(), dt);
++        if (!recoveringThisStep) BotCrowdAvoidance.separate(self, match.combatants(), match.world(), dt);
+         manageWeapon();
+         detectStuck(dt);
+     }
+@@ -424,6 +469,7 @@
+                 path.clear();
+                 repathTimer = 0f;
+                 searchTimer = 1f + random.nextFloat() * 1.3f + difficulty.tactics() * 0.8f;
++                investigationTime = 8f;
+             }
+         } else if (state == State.ENGAGE) {
+             state = State.PATROL;
+@@ -458,26 +504,39 @@
+ 
+     /** Gunfire pulls bots toward the noise even when they cannot see the shooter. */
+     public void hearGunshot(float x, float y, float z, float loudness) {
+-        if (!self.alive || state == State.ENGAGE || coverTime > 0f || match.objectives() != null) {
+-            return;
+-        }
+-        float distance = (float) Math.sqrt((x - self.position.x) * (x - self.position.x)
+-                + (z - self.position.z) * (z - self.position.z));
+-        if (distance > 45f * loudness) {
+-            return;
+-        }
++        hearNoise(x, y, z, 45f * loudness);
++    }
++
++    void hearFootstep(float x, float y, float z, float range) {
++        hearNoise(x, y, z, range * (.65f + difficulty.tactics() * .35f));
++    }
++
++    private void hearNoise(float x, float y, float z, float range) {
++        if (!self.alive || match.mode().passiveBots() || state == State.ENGAGE
++                || coverTime > 0f || hearingCooldown > 0f || range <= 0f) return;
++        float dx = x - self.position.x, dy = y - self.position.y, dz = z - self.position.z;
++        float distanceSquared = dx * dx + dy * dy + dz * dz;
++        if (distanceSquared > range * range) return;
++        hearingCooldown = .8f + (1f - difficulty.tactics()) * .6f;
++        heardPosition.set(x, y, z);
++        heardLookTime = 1.2f;
++        // Sound is a direction cue, never sight or permission to abandon the objective.
++        if (style == BotCombatStyle.SNIPER || tacticalAssignment() || match.objectives() != null) return;
++        float changeX = x - lastKnown.x, changeZ = z - lastKnown.z;
++        if (state == State.HUNT && changeX * changeX + changeZ * changeZ < 9f) return;
++        boolean starting = state != State.HUNT;
+         lastKnown.set(x, y, z);
+-        if (style == BotCombatStyle.SNIPER || tacticalAssignment()) {
+-            // The sound gives a direction, while the squad retains its route and firing position.
+-            self.yaw = MathUtil.approachAngle(self.yaw,
+-                    (float) Math.atan2(x - self.position.x, self.position.z - z), .5f);
+-            return;
+-        }
+         state = State.HUNT;
+-        goalNode = match.nav().nearestNode(x, self.position.y, z);
+-        repathTimer = 0f;
+-        lostTimer = 0f;
+-        searchTimer = 0.9f + random.nextFloat() * 1.4f + difficulty.tactics() * 0.6f;
++        int next = match.nav().nearestNode(x, y, z);
++        if (next != goalNode) {
++            goalNode = next;
++            path.clear();
++            repathTimer = 0f;
++        }
++        if (starting) {
++            investigationTime = Math.min(12f, 4f + (float) Math.sqrt(distanceSquared) / 4f);
++            searchTimer = .9f + random.nextFloat() * 1.4f + difficulty.tactics() * .6f;
++        }
+     }
+ 
+     // ------------------------------------------------------------------ states
+@@ -505,7 +564,7 @@
+             if (goalNode != next) { goalNode = next; repathTimer = 0f; }
+             if (match.objectives().shouldHold(self)) {
+                 self.velocity.x = self.velocity.z = 0f;
+-                self.yaw = MathUtil.wrapAngle(self.yaw + dt * 0.35f);
++                watchSector(dt);
+                 return;
+             }
+             followPath(dt, 1f); lookAlongMovement(dt); return;
+@@ -616,6 +675,7 @@
+                         target.eyeX(), target.eyeY() - 0.2f, target.eyeZ());
+         if (covering) {
+             float distance = Vec3.distance(self.position, target.position);
++            chooseCombatWeapon(distance);
+             self.sprinting = false;   // you cannot shoot at a sprint
+             aimAt(target, dt, distance);
+             shootAt(dt, distance, self.weaponType().melee(), self.weaponType());
+@@ -757,8 +817,18 @@
+     private void watchSector(float dt) {
+         sectorWatchTime += dt;
+         float yaw = self.team == Team.BLUE ? (float) Math.PI * .5f : -(float) Math.PI * .5f;
++        if (match.objectives() != null) {
++            int enemyBase = match.objectives().base(self.team == Team.BLUE ? Team.RED : Team.BLUE);
++            if (match.nav().valid(enemyBase)) {
++                yaw = (float) Math.atan2(match.nav().cellX(enemyBase) + .5f - self.position.x,
++                        self.position.z - match.nav().cellZ(enemyBase) - .5f);
++            }
++        }
+         if (target != null && lostTimer < 4f)
+             yaw = (float) Math.atan2(lastKnown.x - self.position.x, self.position.z - lastKnown.z);
++        else if (heardLookTime > 0f)
++            yaw = (float) Math.atan2(heardPosition.x - self.position.x,
++                    self.position.z - heardPosition.z);
+         yaw += (float) Math.sin(sectorWatchTime * .6f + self.id) * .55f;
+         self.yaw = MathUtil.approachAngle(self.yaw, yaw, difficulty.turnSpeed() * dt);
+         self.pitch = MathUtil.damp(self.pitch, 0f, 3f, dt);
+@@ -783,9 +853,14 @@
+         if (current == null) {
+             return;
+         }
++        if (!current.empty()) recoveringPrimary = false;
++        if (self.slot == primarySlot && recoveringPrimary && current.reloading()
++                && !(distance < 5f && usable(secondary) && !secondary.empty())) return;
+ 
+         int desiredSlot = -1;
+-        if (self.slot == primarySlot && usable(secondary)) {
++        if (!effectiveWeapon(primary) && usable(secondary)) {
++            desiredSlot = secondarySlot;
++        } else if (self.slot == primarySlot && usable(secondary)) {
+             WeaponType primaryType = primary.type();
+             boolean emergency = current.empty()
+                     || (current.reloading() && distance < preferredRangeFor(primaryType));
+@@ -808,7 +883,7 @@
+                     if (emergency && distance < 16f) desiredSlot = secondarySlot;
+                     break;
+             }
+-        } else if (self.slot == secondarySlot && usable(primary)) {
++        } else if (self.slot == secondarySlot && usable(primary) && effectiveWeapon(primary)) {
+             WeaponType primaryType = primary.type();
+             boolean returnToPrimary = current.depleted();
+             switch (primaryType.weaponClass()) {
+@@ -829,13 +904,15 @@
+                     returnToPrimary |= !primary.reloading() && primary.ammo() > 0;
+                     break;
+             }
++            if (primary.empty() && distance < 5f && !current.empty()) returnToPrimary = false;
+             if (returnToPrimary) desiredSlot = primarySlot;
+         } else if (self.slot != primarySlot && self.slot != secondarySlot) {
+-            if (usable(primary)) desiredSlot = primarySlot;
++            if (usable(primary) && effectiveWeapon(primary)) desiredSlot = primarySlot;
+             else if (usable(secondary)) desiredSlot = secondarySlot;
+         }
+ 
+         if (desiredSlot >= 0 && self.selectSlot(desiredSlot)) {
++            recoveringPrimary = desiredSlot == primarySlot && primary.empty();
+             weaponDecisionTimer = 1.15f + random.nextFloat() * 0.45f;
+             burstTime = burstPause = 0f;
+             combatDecisionTimer = 0f;
+@@ -846,6 +923,11 @@
+ 
+     private static boolean usable(Weapon weapon) {
+         return weapon != null && !weapon.depleted();
++    }
++
++    private boolean effectiveWeapon(Weapon weapon) {
++        return weapon != null && !(match.modifier(MatchModifier.HEADSHOTS_ONLY)
++                && weapon.type().weaponClass() == com.ccs.voxelgun.weapon.WeaponClass.LAUNCHER);
+     }
+ 
+     static float preferredRangeFor(WeaponType type) {
+@@ -1229,6 +1311,7 @@
+         if (grenade == null || grenade.depleted()) {
+             return;
+         }
++        if (match.modifier(MatchModifier.HEADSHOTS_ONLY) && grenade.type() != WeaponType.FLASH) return;
+         for (Combatant ally : match.combatants()) {
+             if (ally != self && ally.alive && !match.hostile(self, ally)
+                     && Vec3.distance(ally.position, target.position) < 7f) return;
+@@ -1254,6 +1337,17 @@
+         if (weapon == null) {
+             return;
+         }
++        int primarySlot = WeaponSlot.PRIMARY.ordinal();
++        Weapon primaryWeapon = self.weapons[primarySlot];
++        if (state != State.ENGAGE && (target == null || lostTimer > 1f)
++                && self.slot != primarySlot && self.switchTimer <= 0f && weaponDecisionTimer <= 0f
++                && !weapon.reloading()
++                && usable(primaryWeapon) && effectiveWeapon(primaryWeapon)) {
++            self.selectSlot(primarySlot);
++            weapon = primaryWeapon;
++            recoveringPrimary = weapon.empty();
++            weaponDecisionTimer = 1.4f;
++        }
+         if (weapon.empty() && (weapon.reserve() > 0 || weapon.infiniteReserve())) {
+             match.startReload(self);
+             return;
+@@ -1262,7 +1356,8 @@
+             int primary = WeaponSlot.PRIMARY.ordinal();
+             int secondary = WeaponSlot.SECONDARY.ordinal();
+             int melee = WeaponSlot.MELEE.ordinal();
+-            if (self.slot != primary && usable(self.weapons[primary])) self.selectSlot(primary);
++            if (self.slot != primary && usable(self.weapons[primary])
++                    && effectiveWeapon(self.weapons[primary])) self.selectSlot(primary);
+             else if (self.slot != secondary && usable(self.weapons[secondary])) {
+                 self.selectSlot(secondary);
+             } else if (self.slot != melee && self.weapons[melee] != null) self.selectSlot(melee);
+@@ -1432,6 +1527,10 @@
+             return;
+         }
+         float targetYaw = (float) Math.atan2(self.velocity.x, -self.velocity.z);
++        if (heardLookTime > 0f && recoveryTime <= 0f) {
++            targetYaw = (float) Math.atan2(heardPosition.x - self.position.x,
++                    self.position.z - heardPosition.z);
++        }
+         self.yaw = MathUtil.approachAngle(self.yaw, targetYaw, difficulty.turnSpeed() * dt);
+         self.pitch = MathUtil.damp(self.pitch, 0f, 4f, dt);
+     }
+@@ -1521,22 +1620,39 @@
+ 
+     /** Repaths when the bot has not made progress, which unsticks it from awkward geometry. */
+     private void detectStuck(float dt) {
+-        float moved = Math.abs(self.position.x - lastX) + Math.abs(self.position.z - lastZ);
+-        lastX = self.position.x;
+-        lastZ = self.position.z;
+-        boolean wantsToMove = Math.abs(self.velocity.x) + Math.abs(self.velocity.z) > 1.2f;
+-        if (wantsToMove && moved < 0.02f) {
+-            stuckTimer += dt;
+-        } else {
+-            stuckTimer = Math.max(0f, stuckTimer - dt * 2f);
+-        }
+-        if (stuckTimer > 0.9f) {
++        // Intent survives collision zeroing the velocity. Measure progress over time, not frames.
++        float wishSquared = desired.x * desired.x + desired.z * desired.z;
++        if (!self.grounded || wishSquared < .25f || recoveryTime > 0f) {
+             stuckTimer = 0f;
+-            repathTimer = 0f;
+-            goalNode = match.nav().randomNodeAwayFrom(random, self.position.x, self.position.z, 12f);
+-            if (self.grounded) {
+-                match.jump(self, 7.0f);
+-            }
++            lastX = self.position.x; lastZ = self.position.z;
++            return;
++        }
++        if (stuckTimer == 0f) { lastX = self.position.x; lastZ = self.position.z; }
++        stuckTimer += dt;
++        if (stuckTimer < .9f) return;
++        float dx = self.position.x - lastX, dz = self.position.z - lastZ;
++        stuckTimer = 0f;
++        if (dx * dx + dz * dz >= .16f) return;
++        path.clear();
++        repathTimer = navigationProbeTimer = 0f;
++        previousWaypoint = validatedWaypoint = failedGoalNode = -1;
++        float inverse = 1f / (float) Math.sqrt(wishSquared);
++        float forwardX = desired.x * inverse, forwardZ = desired.z * inverse;
++        float side = (self.id & 1) == 0 ? 1f : -1f;
++        for (int attempt = 0; attempt < 3; attempt++) {
++            float escapeX = attempt == 2 ? -forwardX : -forwardZ * side;
++            float escapeZ = attempt == 2 ? -forwardZ : forwardX * side;
++            side = -side;
++            if (BotMovementSafety.canDodge(self, match.world(), escapeX, escapeZ, false)) {
++                recoveryX = escapeX; recoveryZ = escapeZ; recoveryTime = .75f;
++                recoveryProbeTime = 0f;
++                return;
++            }
++        }
++        // A free patrol may pick another local goal; assigned soldiers retain their objective.
++        if (state == State.PATROL && !tacticalAssignment() && match.objectives() == null) {
++            goalNode = -1;
++            goalCooldown = 0f;
+         }
+     }
+ }
+--- before/Match.java
++++ app/src/main/java/com/ccs/voxelgun/game/Match.java
+@@ -506,19 +506,25 @@
+ 
+     private void giveBotLoadout(Combatant bot) {
+         int seedRotation = (int) Math.floorMod(config.seed, (long) BOT_PRIMARY_POOLS.length);
+-        int role = Math.floorMod(bot.id - 1 + seedRotation, BOT_PRIMARY_POOLS.length);
++        int ordinal = config.mode.teamBased() ? (bot.id - 1) / 2 : bot.id - 1;
++        int roleCount = modifier(MatchModifier.HEADSHOTS_ONLY)
++                ? BOT_PRIMARY_POOLS.length - 1 : BOT_PRIMARY_POOLS.length;
++        int role = Math.floorMod(ordinal + seedRotation, roleCount);
+         WeaponType[] primaries = BOT_PRIMARY_POOLS[role];
+         WeaponType[] secondaries = BOT_SECONDARY_POOLS[role];
+         WeaponType primary = primaries[random.nextInt(primaries.length)];
+         WeaponType secondary = secondaries[random.nextInt(secondaries.length)];
+-        WeaponType grenade = random.nextFloat() < 0.55f ? WeaponType.FRAG : WeaponType.FLASH;
++        WeaponType grenade = !modifier(MatchModifier.HEADSHOTS_ONLY) && random.nextFloat() < 0.55f
++                ? WeaponType.FRAG : WeaponType.FLASH;
+         bot.setLoadout(primary, secondary, WeaponType.KNIFE, grenade);
+     }
+ 
+     /** Every Battle Field bot receives one class weapon, the common P9 and the common knife. */
+     private void giveBattlefieldBotLoadout(Combatant bot) {
+         WeaponType[] pool = BattlefieldRules.weaponsForClass(bot.battlefieldClass);
+-        WeaponType longGun = pool[Math.floorMod(bot.id + (int) config.seed, pool.length)];
++        // The same class/team repeats every six ids; indexing by id aliases with pool sizes.
++        int ordinal = (bot.id - 1) / (BattlefieldClass.values().length * 2);
++        WeaponType longGun = pool[(int) Math.floorMod(config.seed + ordinal, (long) pool.length)];
+         bot.setBattlefieldLoadout(longGun);
+     }
+ 
+@@ -951,6 +957,7 @@
+ 
+     /** Gravity, collision and footstep bookkeeping for any combatant. */
+     private void integrateBody(Combatant combatant, float dt, boolean swimUp) {
++        float previousX = combatant.position.x, previousZ = combatant.position.z;
+         boolean swimming = Swimming.applyVertical(world, combatant, swimUp, dt);
+         if (!swimming) combatant.velocity.y = Math.max(Physics.TERMINAL_VELOCITY,
+                 combatant.velocity.y + Physics.GRAVITY * dt * (modifier(MatchModifier.LOW_GRAVITY) ? 0.4f : 1f));
+@@ -1001,11 +1008,11 @@
+             }
+         }
+ 
+-        float planarSpeed = (float) Math.sqrt(combatant.velocity.x * combatant.velocity.x
+-                + combatant.velocity.z * combatant.velocity.z);
+-        combatant.walkCycle += planarSpeed * dt * 1.9f;
+-        if (!swimming && combatant.grounded && planarSpeed > 0.6f) {
+-            combatant.stepAccumulator += planarSpeed * dt;
++        float travelled = (float) Math.hypot(combatant.position.x - previousX,
++                combatant.position.z - previousZ);
++        combatant.walkCycle += travelled * 1.9f;
++        if (!swimming && combatant.grounded && travelled > 0.6f * dt) {
++            combatant.stepAccumulator += travelled;
+             float stride = combatant.crouching ? 3.1f : combatant.sprinting ? 1.9f : 2.4f;
+             if (combatant.stepAccumulator >= stride) {
+                 combatant.stepAccumulator = 0f;
+@@ -1014,6 +1021,7 @@
+                 listener.onSound(Sfx.footstep(surface), combatant.position.x, combatant.position.y,
+                         combatant.position.z, combatant.crouching ? 0.25f : 0.6f,
+                         0.9f + random.nextFloat() * 0.25f);
++                alertFootsteps(combatant);
+             }
+         }
+     }
+@@ -1851,7 +1859,9 @@
+         }
+         if (modifier(MatchModifier.RANDOM_WEAPONS)) {
+             combatant.setLoadout(RANDOM_GUNS[random.nextInt(RANDOM_GUNS.length)],
+-                    WeaponType.P9, WeaponType.KNIFE, WeaponType.FRAG);
++                    WeaponType.P9, WeaponType.KNIFE,
++                    combatant.bot && modifier(MatchModifier.HEADSHOTS_ONLY)
++                            ? WeaponType.FLASH : WeaponType.FRAG);
+         }
+         if (modifier(MatchModifier.ONE_SHOT_RAIL)) combatant.setSingleWeapon(WeaponType.SCOUT_V);
+         configureWeapons(combatant);
+@@ -1966,11 +1976,22 @@
+ 
+     /** Lets every nearby bot know where a shot came from. */
+     private void alertBots(Combatant shooter, float loudness) {
+-        for (int i = 0; i < brains.size(); i++) {
+-            BotBrain brain = brains.get(i);
+-            if (!brain.owns(shooter)) {
++        for (Combatant listener : combatants) {
++            BotBrain brain = brainFor(listener);
++            if (brain != null && listener.alive && hostile(listener, shooter)) {
+                 brain.hearGunshot(shooter.position.x, shooter.position.y, shooter.position.z,
+                         loudness);
++            }
++        }
++    }
++
++    /** Short-range cues only: walking and crouching are quieter than running. */
++    private void alertFootsteps(Combatant walker) {
++        float range = walker.crouching ? 2.5f : walker.sprinting ? 14f : 8f;
++        for (Combatant listener : combatants) {
++            BotBrain brain = brainFor(listener);
++            if (brain != null && listener.alive && hostile(listener, walker)) {
++                brain.hearFootstep(walker.position.x, walker.position.y, walker.position.z, range);
+             }
+         }
+     }

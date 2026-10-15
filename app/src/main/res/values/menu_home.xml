@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="menu_home_eyebrow">TACTICAL VOXEL SHOOTER</string>
+    <string name="menu_home_description">Fast arenas. Battles with 100 soldiers.</string>
+    <string name="menu_home_level">LEVEL %1$d</string>
+    <string name="menu_home_profile_edit">Player profile. Change call sign</string>
+    <string name="menu_home_feature_title">URBAN FRONT</string>
+    <string name="menu_home_feature_detail">Battle Field · Civic Circle</string>
+    <style name="Widget.VoxelGun.Button.HomePrimary" parent="Widget.VoxelGun.Button.MenuPrimary">
+        <item name="android:textSize">22sp</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:gravity">start|center_vertical</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">22dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="backgroundTint">#FFAA41</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="iconSize">22dp</item>
+        <item name="android:elevation">0dp</item>
+    </style>
+    <style name="Widget.VoxelGun.Button.HomeUtility" parent="Widget.VoxelGun.Button.MenuSecondary">
+        <item name="android:minHeight">48dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:letterSpacing">0.015</item>
+        <item name="android:gravity">start|center_vertical</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textColor">#DCE6ED</item>
+        <item name="backgroundTint">#6B111E2B</item>
+        <item name="strokeColor">#24D1E0EA</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="iconTint">#A5B9C9</item>
+        <item name="iconPadding">7dp</item>
+        <item name="iconSize">17dp</item>
+    </style>
+</resources>

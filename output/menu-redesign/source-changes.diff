@@ -1,0 +1,459 @@
+--- before/app/src/main/res/layout/screen_main.xml
++++ after/app/src/main/res/layout/screen_main.xml
+@@ -2,268 +2,136 @@
+ <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     xmlns:tools="http://schemas.android.com/tools"
+-    android:layout_width="match_parent"
+-    android:layout_height="match_parent"
+-    android:paddingStart="32dp"
+-    android:paddingTop="14dp"
+-    android:paddingEnd="24dp"
+-    android:paddingBottom="18dp">
++    android:layout_width="match_parent" android:layout_height="match_parent">
+ 
+-    <ImageView
+-        android:id="@+id/menu_wordmark"
+-        android:layout_width="292dp"
+-        android:layout_height="132dp"
+-        android:contentDescription="@string/app_name"
+-        android:elevation="2dp"
+-        android:scaleType="fitCenter"
+-        android:src="@drawable/voxel_strike_wordmark"
++    <ImageView android:id="@+id/menu_battle_scene"
++        android:layout_width="0dp" android:layout_height="0dp"
++        android:importantForAccessibility="no" android:scaleType="centerCrop"
++        android:src="@drawable/menu_battlefield_capture"
++        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
++        app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent" />
++
++    <View android:layout_width="0dp" android:layout_height="0dp"
++        android:background="@drawable/bg_title_scrim" android:importantForAccessibility="no"
++        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
++        app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent" />
++
++    <ScrollView android:id="@+id/main_menu_content"
++        android:layout_width="328dp" android:layout_height="0dp"
++        android:layout_marginStart="32dp" android:layout_marginTop="24dp" android:layout_marginBottom="24dp"
++        android:fillViewport="true" android:overScrollMode="never" android:scrollbars="none"
+         app:layout_constraintStart_toStartOf="parent"
+-        app:layout_constraintTop_toTopOf="parent" />
++        app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent">
++        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
++            android:orientation="vertical">
++            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
++                android:fontFamily="sans-serif-medium" android:letterSpacing="0.13"
++                android:text="@string/menu_home_eyebrow" android:textColor="#FFC372" android:textSize="10sp" />
++            <ImageView android:id="@+id/menu_wordmark"
++                android:layout_width="216dp" android:layout_height="98dp" android:layout_marginTop="6dp"
++                android:contentDescription="@string/app_name" android:scaleType="fitStart"
++                android:src="@drawable/voxel_strike_wordmark" />
++            <TextView android:id="@+id/menu_tagline"
++                android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
++                android:fontFamily="sans-serif" android:lineSpacingExtra="3dp"
++                android:text="@string/menu_home_description" android:textColor="#BECDD9" android:textSize="14sp" />
++            <Space android:layout_width="1dp" android:layout_height="8dp" android:layout_weight="1" />
++            <LinearLayout android:id="@+id/main_menu_actions"
++                android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
++                <com.google.android.material.button.MaterialButton android:id="@+id/button_play"
++                    style="@style/Widget.VoxelGun.Button.HomePrimary"
++                    android:layout_width="match_parent" android:layout_height="60dp"
++                    android:maxLines="1" android:text="@string/menu_play"
++                    app:icon="@drawable/ic_game_play" app:iconGravity="end" />
++                <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
++                    android:layout_marginTop="8dp" android:orientation="horizontal">
++                    <com.google.android.material.button.MaterialButton
++                        android:id="@+id/button_arsenal"
++                        style="@style/Widget.VoxelGun.Button.HomeUtility"
++                        android:layout_width="0dp" android:layout_height="match_parent"
++                        android:layout_marginEnd="4dp" android:layout_weight="1"
++                        android:maxLines="1" android:text="@string/menu_skins"
++                        app:icon="@drawable/ic_game_crosshair" app:iconGravity="start" />
++                    <com.google.android.material.button.MaterialButton
++                        android:id="@+id/button_settings"
++                        style="@style/Widget.VoxelGun.Button.HomeUtility"
++                        android:layout_width="0dp" android:layout_height="match_parent"
++                        android:layout_marginStart="4dp" android:layout_weight="1"
++                        android:maxLines="1" android:text="@string/menu_settings"
++                        app:icon="@drawable/ic_game_sliders" app:iconGravity="start" />
++                </LinearLayout>
++                <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
++                    android:layout_marginTop="8dp" android:orientation="horizontal">
++                    <com.google.android.material.button.MaterialButton
++                        android:id="@+id/button_controls"
++                        style="@style/Widget.VoxelGun.Button.HomeUtility"
++                        android:layout_width="0dp" android:layout_height="match_parent"
++                        android:layout_marginEnd="4dp" android:layout_weight="1"
++                        android:maxLines="1" android:text="@string/menu_controls"
++                        app:icon="@drawable/ic_game_hud" app:iconGravity="start" />
++                    <com.google.android.material.button.MaterialButton
++                        android:id="@+id/button_stats"
++                        style="@style/Widget.VoxelGun.Button.HomeUtility"
++                        android:layout_width="0dp" android:layout_height="match_parent"
++                        android:layout_marginStart="4dp" android:layout_weight="1"
++                        android:maxLines="1" android:text="@string/menu_stats"
++                        app:icon="@drawable/ic_game_stats" app:iconGravity="start" />
++                </LinearLayout>
++            </LinearLayout>
++        </LinearLayout>
++    </ScrollView>
+ 
+-    <TextView
+-        android:id="@+id/menu_tagline"
+-        android:layout_width="wrap_content"
+-        android:layout_height="wrap_content"
+-        android:fontFamily="monospace"
+-        android:elevation="2dp"
+-        android:letterSpacing="0.14"
+-        android:text="@string/menu_tagline"
+-        android:textAllCaps="true"
+-        android:textColor="@color/game_hud"
+-        android:textSize="11sp"
+-        android:textStyle="bold"
+-        app:layout_constraintStart_toStartOf="@id/menu_wordmark"
+-        app:layout_constraintTop_toBottomOf="@id/menu_wordmark" />
++    <com.google.android.material.card.MaterialCardView android:id="@+id/card_profile"
++        style="@style/Widget.VoxelGun.Card.Profile"
++        android:layout_width="264dp" android:layout_height="82dp"
++        android:layout_marginTop="24dp" android:layout_marginEnd="28dp"
++        android:clickable="true" android:contentDescription="@string/menu_home_profile_edit"
++        android:focusable="true" android:foreground="?attr/selectableItemBackground"
++        app:cardBackgroundColor="#B30B1520" app:strokeColor="#38B4C9D9"
++        app:layout_constraintTop_toTopOf="parent" app:layout_constraintEnd_toEndOf="parent">
++        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
++            android:orientation="vertical" android:paddingHorizontal="14dp" android:paddingVertical="10dp">
++            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
++                android:gravity="center_vertical" android:orientation="horizontal">
++                <TextView android:id="@+id/text_player_name"
++                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
++                    android:ellipsize="end" android:fontFamily="sans-serif-condensed" android:maxLines="1"
++                    android:textColor="#F1F5F8" android:textSize="19sp" android:textStyle="bold" tools:text="Player" />
++                <TextView android:id="@+id/text_coins"
++                    android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp"
++                    android:textColor="#FFC372" android:textSize="14sp" android:textStyle="bold" tools:text="11992 ¢" />
++            </LinearLayout>
++            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
++                android:layout_marginTop="2dp" android:orientation="horizontal">
++                <TextView android:id="@+id/text_level"
++                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
++                    android:fontFamily="sans-serif-medium" android:letterSpacing="0.08" android:maxLines="1"
++                    android:textColor="#A9BDCD" android:textSize="10sp" tools:text="РІВЕНЬ 7" />
++                <TextView android:id="@+id/text_kd"
++                    android:layout_width="wrap_content" android:layout_height="wrap_content"
++                    android:textColor="#A9BDCD" android:textSize="10sp" tools:text="K/D 2.33" />
++            </LinearLayout>
++            <com.google.android.material.progressindicator.LinearProgressIndicator android:id="@+id/progress_level"
++                android:layout_width="match_parent" android:layout_height="3dp" android:layout_marginTop="6dp"
++                android:max="100" app:indicatorColor="#FFC372" app:indicatorTrackGapSize="0dp"
++                app:trackColor="#35475C6D" app:trackCornerRadius="0dp"
++                app:trackStopIndicatorSize="0dp" app:trackThickness="3dp" />
++        </LinearLayout>
++    </com.google.android.material.card.MaterialCardView>
+ 
+-    <com.ccs.voxelgun.ui.MenuPlayerHeroView
+-        android:id="@+id/menu_weapon_hero"
+-        android:layout_width="0dp"
+-        android:layout_height="0dp"
+-        android:alpha="0.94"
+-        android:importantForAccessibility="no"
+-        app:layout_constraintBottom_toBottomOf="parent"
+-        app:layout_constraintEnd_toEndOf="parent"
+-        app:layout_constraintStart_toStartOf="parent"
+-        app:layout_constraintTop_toTopOf="parent"
+-        app:layout_constraintWidth_percent="0.67" />
+-
+-    <LinearLayout
+-        android:id="@+id/main_menu_actions"
+-        android:layout_width="296dp"
+-        android:layout_height="wrap_content"
+-        android:elevation="3dp"
+-        android:orientation="vertical"
+-        app:layout_constraintBottom_toBottomOf="parent"
+-        app:layout_constraintStart_toStartOf="parent">
+-
+-        <com.google.android.material.button.MaterialButton
+-            android:id="@+id/button_play"
+-            style="@style/Widget.VoxelGun.Button.MenuPrimary"
+-            android:layout_width="match_parent"
+-            android:layout_height="56dp"
+-            android:text="@string/menu_play"
+-            app:icon="@drawable/ic_game_play"
+-            app:iconGravity="textStart" />
+-
+-        <LinearLayout
+-            android:layout_width="match_parent"
+-            android:layout_height="44dp"
+-            android:layout_marginTop="8dp"
+-            android:orientation="horizontal">
+-
+-            <com.google.android.material.button.MaterialButton
+-                android:id="@+id/button_arsenal"
+-                style="@style/Widget.VoxelGun.Button.MenuSecondary"
+-                android:layout_width="0dp"
+-                android:layout_height="44dp"
+-                android:layout_marginEnd="4dp"
+-                android:layout_weight="1"
+-                android:maxLines="1"
+-                android:text="@string/menu_skins"
+-                app:icon="@drawable/ic_game_crosshair"
+-                app:iconGravity="textStart" />
+-
+-            <com.google.android.material.button.MaterialButton
+-                android:id="@+id/button_settings"
+-                style="@style/Widget.VoxelGun.Button.MenuSecondary"
+-                android:layout_width="0dp"
+-                android:layout_height="44dp"
+-                android:layout_marginStart="4dp"
+-                android:layout_weight="1"
+-                android:maxLines="1"
+-                android:text="@string/menu_settings"
+-                app:icon="@drawable/ic_game_sliders"
+-                app:iconGravity="textStart" />
+-        </LinearLayout>
+-
+-        <LinearLayout
+-            android:layout_width="match_parent"
+-            android:layout_height="44dp"
+-            android:layout_marginTop="8dp"
+-            android:orientation="horizontal">
+-
+-            <com.google.android.material.button.MaterialButton
+-                android:id="@+id/button_controls"
+-                style="@style/Widget.VoxelGun.Button.MenuSecondary"
+-                android:layout_width="0dp"
+-                android:layout_height="44dp"
+-                android:layout_marginEnd="4dp"
+-                android:layout_weight="1"
+-                android:maxLines="1"
+-                android:text="@string/menu_controls"
+-                app:icon="@drawable/ic_game_hud"
+-                app:iconGravity="textStart" />
+-
+-            <com.google.android.material.button.MaterialButton
+-                android:id="@+id/button_stats"
+-                style="@style/Widget.VoxelGun.Button.MenuSecondary"
+-                android:layout_width="0dp"
+-                android:layout_height="44dp"
+-                android:layout_marginStart="4dp"
+-                android:layout_weight="1"
+-                android:maxLines="1"
+-                android:text="@string/menu_stats"
+-                app:icon="@drawable/ic_game_stats"
+-                app:iconGravity="textStart" />
+-        </LinearLayout>
++    <LinearLayout android:id="@+id/menu_scene_caption"
++        android:layout_width="wrap_content" android:layout_height="wrap_content"
++        android:layout_marginEnd="32dp" android:layout_marginBottom="28dp"
++        android:gravity="end" android:orientation="vertical"
++        app:layout_constraintEnd_toEndOf="parent" app:layout_constraintBottom_toBottomOf="parent">
++        <View android:layout_width="28dp" android:layout_height="2dp" android:layout_marginBottom="8dp"
++            android:background="#FFC372" android:importantForAccessibility="no" />
++        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
++            android:fontFamily="sans-serif-condensed" android:letterSpacing="0.10"
++            android:text="@string/menu_home_feature_title" android:textColor="#F4F7FA"
++            android:textSize="16sp" android:textStyle="bold" />
++        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
++            android:layout_marginTop="3dp" android:fontFamily="sans-serif"
++            android:text="@string/menu_home_feature_detail" android:textColor="#B7C8D5" android:textSize="11sp" />
+     </LinearLayout>
+-
+-    <com.google.android.material.card.MaterialCardView
+-        android:id="@+id/card_profile"
+-        style="@style/Widget.VoxelGun.Card.Profile"
+-        android:layout_width="324dp"
+-        android:layout_height="118dp"
+-        android:clickable="true"
+-        android:elevation="3dp"
+-        android:focusable="true"
+-        android:foreground="?attr/selectableItemBackground"
+-        app:layout_constraintBottom_toBottomOf="parent"
+-        app:layout_constraintEnd_toEndOf="parent">
+-
+-        <FrameLayout
+-            android:layout_width="match_parent"
+-            android:layout_height="match_parent">
+-
+-            <View
+-                android:layout_width="match_parent"
+-                android:layout_height="2dp"
+-                android:background="@drawable/bg_panel_accent"
+-                android:importantForAccessibility="no" />
+-
+-            <LinearLayout
+-                android:layout_width="match_parent"
+-                android:layout_height="match_parent"
+-                android:orientation="vertical"
+-                android:paddingStart="14dp"
+-                android:paddingTop="10dp"
+-                android:paddingEnd="14dp"
+-                android:paddingBottom="9dp">
+-
+-                <LinearLayout
+-                    android:layout_width="match_parent"
+-                    android:layout_height="wrap_content"
+-                    android:gravity="center_vertical"
+-                    android:orientation="horizontal">
+-
+-                    <TextView
+-                        android:layout_width="0dp"
+-                        android:layout_height="wrap_content"
+-                        android:layout_weight="1"
+-                        android:fontFamily="monospace"
+-                        android:letterSpacing="0.12"
+-                        android:text="@string/profile_operator"
+-                        android:textAllCaps="true"
+-                        android:textColor="@color/game_accent"
+-                        android:textSize="11sp"
+-                        android:textStyle="bold" />
+-
+-                    <TextView
+-                        android:layout_width="wrap_content"
+-                        android:layout_height="wrap_content"
+-                        android:text="@string/profile_tap_edit"
+-                        android:textColor="@color/game_text_dim"
+-                        android:textSize="11sp" />
+-                </LinearLayout>
+-
+-                <LinearLayout
+-                    android:layout_width="match_parent"
+-                    android:layout_height="wrap_content"
+-                    android:gravity="bottom"
+-                    android:orientation="horizontal">
+-
+-                    <TextView
+-                        android:id="@+id/text_player_name"
+-                        android:layout_width="0dp"
+-                        android:layout_height="wrap_content"
+-                        android:layout_weight="1"
+-                        android:ellipsize="end"
+-                        android:fontFamily="sans-serif-condensed"
+-                        android:maxLines="1"
+-                        android:textColor="@color/game_text"
+-                        android:textSize="20sp"
+-                        android:textStyle="bold"
+-                        tools:text="Player" />
+-
+-                    <TextView
+-                        android:id="@+id/text_level"
+-                        android:layout_width="wrap_content"
+-                        android:layout_height="wrap_content"
+-                        android:maxLines="1"
+-                        android:textColor="@color/game_text_muted"
+-                        android:textSize="11sp"
+-                        tools:text="Level 1" />
+-                </LinearLayout>
+-
+-                <com.google.android.material.progressindicator.LinearProgressIndicator
+-                    android:id="@+id/progress_level"
+-                    android:layout_width="match_parent"
+-                    android:layout_height="4dp"
+-                    android:layout_marginTop="3dp"
+-                    android:max="100"
+-                    app:indicatorColor="@color/game_accent"
+-                    app:indicatorTrackGapSize="0dp"
+-                    app:trackColor="#34404C58"
+-                    app:trackCornerRadius="0dp"
+-                    app:trackStopIndicatorSize="0dp"
+-                    app:trackThickness="3dp" />
+-
+-                <LinearLayout
+-                    android:layout_width="match_parent"
+-                    android:layout_height="wrap_content"
+-                    android:layout_marginTop="5dp"
+-                    android:gravity="center_vertical"
+-                    android:orientation="horizontal">
+-
+-                    <TextView
+-                        android:id="@+id/text_coins"
+-                        android:layout_width="0dp"
+-                        android:layout_height="wrap_content"
+-                        android:layout_weight="1"
+-                        android:textColor="@color/game_accent_light"
+-                        android:textSize="14sp"
+-                        android:textStyle="bold"
+-                        tools:text="1200 ¢" />
+-
+-                    <TextView
+-                        android:id="@+id/text_kd"
+-                        android:layout_width="wrap_content"
+-                        android:layout_height="wrap_content"
+-                        android:fontFamily="monospace"
+-                        android:textColor="@color/game_hud"
+-                        android:textSize="11sp"
+-                        tools:text="K/D 0.00" />
+-                </LinearLayout>
+-
+-                <TextView
+-                    android:id="@+id/text_loadout_summary"
+-                    android:layout_width="match_parent"
+-                    android:layout_height="wrap_content"
+-                    android:ellipsize="end"
+-                    android:maxLines="1"
+-                    android:textColor="@color/game_text_dim"
+-                    android:textSize="11sp"
+-                    tools:text="Weapons are taken from the buy menu during a round" />
+-            </LinearLayout>
+-        </FrameLayout>
+-    </com.google.android.material.card.MaterialCardView>
+ </androidx.constraintlayout.widget.ConstraintLayout>
+--- before/app/src/main/java/com/ccs/voxelgun/ui/MenuActivity.java
++++ after/app/src/main/java/com/ccs/voxelgun/ui/MenuActivity.java
+@@ -155,6 +155,8 @@
+ 
+     private void show(int screen) {
+         flipper.setDisplayedChild(screen);
++        // The captured battle frame needs no animated backdrop drawing behind it.
++        findViewById(R.id.menu_backdrop).setVisibility(screen == SCREEN_MAIN ? View.INVISIBLE : View.VISIBLE);
+         View page = flipper.getCurrentView();
+         page.animate().cancel();
+         page.setAlpha(0f);
+@@ -178,13 +180,12 @@
+     /** Staggers the first frame so the menu lands like a game title screen, not a form. */
+     private void animateMainEntrance() {
+         View logo = findViewById(R.id.menu_wordmark);
+-        View weapon = findViewById(R.id.menu_weapon_hero);
++        View battleScene = findViewById(R.id.menu_battle_scene);
+         View actions = findViewById(R.id.main_menu_actions);
+         View profileCard = findViewById(R.id.card_profile);
+         logo.setAlpha(0f);
+         logo.setTranslationY(-dp(10));
+-        weapon.setAlpha(0f);
+-        weapon.setTranslationX(dp(32));
++        battleScene.setAlpha(0f);
+         actions.setAlpha(0f);
+         actions.setTranslationY(dp(14));
+         profileCard.setAlpha(0f);
+@@ -194,7 +195,7 @@
+                     new android.view.animation.DecelerateInterpolator();
+             logo.animate().alpha(1f).translationY(0f).setDuration(360L)
+                     .setInterpolator(easing).start();
+-            weapon.animate().alpha(0.94f).translationX(0f).setStartDelay(90L)
++            battleScene.animate().alpha(1f).setStartDelay(40L)
+                     .setDuration(440L).setInterpolator(easing).start();
+             actions.animate().alpha(1f).translationY(0f).setStartDelay(150L)
+                     .setDuration(320L).setInterpolator(easing).start();
+@@ -212,6 +213,7 @@
+     // ------------------------------------------------------------------ main
+ 
+     private void setupMainScreen() {
++        findViewById(R.id.menu_backdrop).setVisibility(View.INVISIBLE);
+         findViewById(R.id.button_play).setOnClickListener(v -> show(SCREEN_PLAY));
+         findViewById(R.id.button_arsenal).setOnClickListener(v -> show(SCREEN_ARSENAL));
+         findViewById(R.id.button_settings).setOnClickListener(v -> show(SCREEN_SETTINGS));
+@@ -227,15 +229,12 @@
+     private void refreshProfileCard() {
+         ((TextView) findViewById(R.id.text_player_name)).setText(profile.name());
+         int level = profile.level();
+-        ((TextView) findViewById(R.id.text_level)).setText(getString(R.string.stats_level_line,
+-                level, profile.experienceIntoLevel(), Profile.experienceForLevel(level)));
++        ((TextView) findViewById(R.id.text_level)).setText(getString(R.string.menu_home_level, level));
+         LinearProgressIndicator progress = findViewById(R.id.progress_level);
+         progress.setProgress(Math.round(profile.levelProgress() * 100));
+         ((TextView) findViewById(R.id.text_coins)).setText(profile.coins() + " ¢");
+         ((TextView) findViewById(R.id.text_kd)).setText(String.format(Locale.US, "K/D %.2f",
+                 profile.killDeathRatio()));
+-        ((TextView) findViewById(R.id.text_loadout_summary))
+-                .setText(getString(R.string.loadout_summary));
+     }
+ 
+     private void promptForName() {

@@ -1,0 +1,3 @@
+map,mode,difficulty,seed,modifiers,conquest,status,simulated_seconds,bot_seconds,moving_seconds,hold_seconds,idle_seconds,movement_intent_seconds,stalled_seconds,spinning_seconds,max_stall_seconds,distance,turn_radians,path_failures,repeated_goal_failures,path_successes,path_deferrals,recoveries,abandoned_goals,kills,blue_score,red_score,mean_update_ms,p95_update_ms,max_update_ms,issues
+pirate_cove,CRYSTAL_HEIST,REGULAR,20261519,0,false,PASS,38.500,243.683,212.383,2.267,29.033,190.500,2.900,0.000,0.833,675.156,449.549,0,0,263,10,1,0,1,0,0,0.062,0.181,5.063,""
+pirate_cove,TEAM_DEATHMATCH,VETERAN,20351519,32770,false,PASS,38.500,239.950,224.583,1.017,14.350,209.500,0.933,0.000,0.933,839.770,331.447,2,0,250,11,2,0,3,2,1,0.044,0.057,11.816,""

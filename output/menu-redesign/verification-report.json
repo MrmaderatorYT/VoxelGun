@@ -1,0 +1,34 @@
+{
+  "result": "PASS",
+  "device": "Google Pixel 7a / Mali-G710",
+  "screen_px": [
+    2400,
+    1080
+  ],
+  "density": 2.625,
+  "native_font_scale": 1.0,
+  "layout": "All five home actions enabled, fully visible: primary158px; utility126px each. Bottom row891..1017px within1080px display.",
+  "larger_font_review": "Metrics reviewed for fontScale1.3, short copy and flexible spacer. System scale not changed while a live match existed; native verification was at1.0.",
+  "build": "assembleDebug and assembleDebugAndroidTest: PASS",
+  "device_tests": {
+    "passed": 12,
+    "failed": 0,
+    "seconds": 17.796,
+    "classes": [
+      "MenuInputInstrumentedTest",
+      "MenuPolishInstrumentedTest",
+      "AudioStartupInstrumentedTest",
+      "MatchLaunchInstrumentedTest"
+    ]
+  },
+  "manual_capture": "Actual Android JNI Match and GameRenderer captured via GLES framebuffer. City Civic Circle, seed4242, arranged20fighters,8realshots,206particles. Camera and scene metadata: menu-battle-2.txt.",
+  "background": {
+    "path": "app/src/main/res/drawable-nodpi/menu_battlefield_capture.webp",
+    "bytes": 102590,
+    "sha256": "791684b92177f7a7ed3ad9c0c95336b3a0aeddbae39f2be2a192fb093c3f6a3b",
+    "source_png": "menu-battle-2.png"
+  },
+  "launch": "Installed and opened successfully; measured cold MenuActivity launch1053ms.",
+  "temporary_capture_source": "Removed from androidTest; reproducible manual utility remains only in tools/.",
+  "ai_art": "Removed from production resources and APK."
+}

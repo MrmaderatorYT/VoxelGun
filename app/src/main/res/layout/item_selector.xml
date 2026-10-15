@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Widget.VoxelGun.Card"
+    android:layout_width="match_parent"
+    android:layout_height="56dp"
+    android:layout_marginBottom="4dp"
+    app:cardPreventCornerOverlap="false"
+    app:cardUseCompatPadding="false"
+    app:cardBackgroundColor="@color/game_panel_soft"
+    app:strokeColor="@color/game_line">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/selector_previous"
+            style="@style/Widget.VoxelGun.Button.SelectorArrow"
+            android:layout_width="56dp"
+            android:layout_height="match_parent"
+            android:text="@string/selector_previous_symbol" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="20dp"
+            android:background="@color/game_line" />
+
+        <TextView
+            android:id="@+id/selector_value"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:letterSpacing="0.05"
+            android:maxLines="1"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:textColor="@color/game_text"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="20dp"
+            android:background="@color/game_line" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/selector_next"
+            style="@style/Widget.VoxelGun.Button.SelectorArrow"
+            android:layout_width="56dp"
+            android:layout_height="match_parent"
+            android:text="@string/selector_next_symbol" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

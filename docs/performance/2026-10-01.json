@@ -1,0 +1,74 @@
+{
+  "scope": "Chunk meshing, visibility, static transforms and GL upload pacing; no gameplay or graphics-quality changes",
+  "device": "Samsung SM-T720",
+  "build": "debug; native voxel library available",
+  "methodology": {
+    "repetitions": 5,
+    "statistic": "median",
+    "warmup": true,
+    "runnerOrder": "alternating legacy and optimized paths in one Android process",
+    "timingAssertions": false,
+    "measures": "isolated subsystem CPU time, not GPU frame time/FPS or total map loading"
+  },
+  "baselineBeforeProductionEdits": {
+    "alpineMeshingSampleChunks": 256,
+    "passes": 2,
+    "medianMs": 211.939114,
+    "indexCount": 42984
+  },
+  "finalABComparison": {
+    "meshing": {
+      "map": "battlefield_alps",
+      "seed": 4242,
+      "sampleChunks": 256,
+      "passes": 2,
+      "legacyMedianMs": 201.471979,
+      "optimizedMedianMs": 59.085156,
+      "speedup": 3.4098577822,
+      "cpuTimeReductionPercent": 70.6732636999,
+      "indexCountBothPaths": 42984,
+      "validation": "All vertex floats (positions/normals/materials/AO) and indices identical for every sampled chunk/pass"
+    },
+    "culling": {
+      "grid": [40, 3, 36],
+      "viewDistance": 240,
+      "workloadFrames": 2000,
+      "occupancy": "deterministic synthetic opaque/translucent masks; unbounded frustum",
+      "legacyMedianMs": 286.212188,
+      "optimizedMedianMs": 210.99901,
+      "cpuTimeReductionPercent": 26.2788173088,
+      "middleOfMapCandidates": 2883,
+      "fullGridCandidates": 4320,
+      "validation": "Same opaque chunk IDs/order; JVM tests also verify both passes over 500 randomized camera/frustum scenarios"
+    }
+  },
+  "simulationSanityCheck": {
+    "actors": 100,
+    "mode": "Battle Field Conquest",
+    "measuredSteps": 600,
+    "meanCpuMs": 0.4106361133,
+    "worstCpuMs": 1.098073,
+    "notes": "Post-change correctness/timing check only; simulation was not changed; excludes GPU rendering"
+  },
+  "changes": [
+    "One reusable padded snapshot per meshing worker, contiguous row copies, one lock/version capture for both passes",
+    "Conservative empty-pass rejection includes the neighbour halo to preserve native boundary faces",
+    "Shared read-only empty mesh buffers",
+    "Local grid visibility broad phase with primitive reused lists and original draw order",
+    "Translation-only updates to static chunk model matrices",
+    "Soft 2 MiB/2 ms upload budget between driver calls; always allow the first mesh to avoid starvation",
+    "Skip GL texture binds when no voxel edits remain"
+  ],
+  "verification": {
+    "jvmTests": 216,
+    "jvmFailures": 0,
+    "androidTests": 22,
+    "androidFailures": 0,
+    "androidRuntimeSeconds": 141.156,
+    "lintErrors": 0,
+    "existingLintWarnings": 80,
+    "buildTasks": ["testDebugUnitTest", "lintDebug", "assembleDebug", "assembleDebugAndroidTest"],
+    "coverage": ["native mesh equivalence", "partial chunks and reuse", "chunk edits", "GPU budget progress", "real GLES/context recreation", "seven dressed-map camera views", "100-actor simulation", "bhop", "map switching", "pause/resume and input"]
+  },
+  "deployment": "Final app and test APK installed with adb install -r; no uninstall/data reset"
+}

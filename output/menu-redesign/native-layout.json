@@ -1,0 +1,90 @@
+{
+  "main_menu_content": {
+    "bounds": [
+      84,
+      63,
+      945,
+      1017
+    ],
+    "height_px": 954,
+    "enabled": "true",
+    "text": ""
+  },
+  "button_play": {
+    "bounds": [
+      84,
+      565,
+      945,
+      723
+    ],
+    "height_px": 158,
+    "enabled": "true",
+    "text": "ГРАТИ"
+  },
+  "button_arsenal": {
+    "bounds": [
+      84,
+      744,
+      503,
+      870
+    ],
+    "height_px": 126,
+    "enabled": "true",
+    "text": "СКІНИ"
+  },
+  "button_settings": {
+    "bounds": [
+      525,
+      744,
+      945,
+      870
+    ],
+    "height_px": 126,
+    "enabled": "true",
+    "text": "НАЛАШТУВАННЯ"
+  },
+  "button_controls": {
+    "bounds": [
+      84,
+      891,
+      503,
+      1017
+    ],
+    "height_px": 126,
+    "enabled": "true",
+    "text": "КЕРУВАННЯ"
+  },
+  "button_stats": {
+    "bounds": [
+      525,
+      891,
+      945,
+      1017
+    ],
+    "height_px": 126,
+    "enabled": "true",
+    "text": "СТАТИСТИКА"
+  },
+  "card_profile": {
+    "bounds": [
+      1633,
+      63,
+      2326,
+      278
+    ],
+    "height_px": 215,
+    "enabled": "true",
+    "text": ""
+  },
+  "progress_level": {
+    "bounds": [
+      1683,
+      226,
+      2276,
+      234
+    ],
+    "height_px": 8,
+    "enabled": "true",
+    "text": ""
+  }
+}

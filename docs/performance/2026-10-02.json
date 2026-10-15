@@ -1,0 +1,54 @@
+{
+  "scope": "Mobile GPU raster frame cost and manually timed bhop; all map geometry and saved preferences preserved",
+  "device": "Samsung SM-T720",
+  "gpu": "Adreno 615",
+  "build": "debug, OpenGL ES 3",
+  "methodology": {
+    "gpu": "Real EGL3 pbuffer; Warehouse, seed 4242, one bot, paused simulation; 12 warmup frames, 30 complete frames with glFinish, median and p95. Per-pass timings use 15 samples and synchronization boundaries, so pass medians are not additive.",
+    "presented": "Real MatchActivity GLSurfaceView, live simulation/HUD/vsync, saved Low preset, 75% scale, adaptive performance disabled, 60 FPS cap; 3.5 second warmup then 16 samples spaced 500ms apart. Spawn-camera sample, not a whole-map or sustained thermal benchmark.",
+    "assertions": "No timing thresholds; correctness and GL errors are asserted. glFinish is test-only.",
+    "comparisonNote": "GPU baseline uses 1920x1200 3D targets. Final Low at 75% uses approximately 960x600 on a 16:10 panel. This intentionally combines shader optimization with a lower pixel budget; it is not an equal-resolution visual-equivalence claim. Native-resolution HUD is unchanged."
+  },
+  "gpuAB": {
+    "baseline": {"target": "1920x1200", "medianMs": 68.365156, "p95Ms": 77.22526, "compositeMedianMs": 57.57375},
+    "lazyNoiseAndRasterVariant": {"target": "1920x1200", "medianMs": 55.281927, "p95Ms": 60.376406, "compositeMedianMs": 38.321979},
+    "cachedProceduralNoise": {"target": "1920x1200", "medianMs": 48.646614, "p95Ms": 57.679896, "compositeMedianMs": 34.121667},
+    "cachedNoiseAndLowPixelBudget": {
+      "target": "960x600", "medianMs": 17.375261, "p95Ms": 20.904948,
+      "geometryMedianMs": 3.481719, "compositeMedianMs": 9.903698,
+      "forwardMedianMs": 1.836979, "tonemapMedianMs": 2.181406
+    }
+  },
+  "presentedFrames": [
+    {"map": "warehouse", "actors": 2, "samples": 16, "medianFps": 59, "minFps": 57, "maxFps": 59}
+  ],
+  "laterScreenOffRepeat": {
+    "powerState": "Dozing (confirmed by dumpsys power), screen timed out; GPU clocks were not locked",
+    "fullTarget": {"resolution": "1920x1200", "medianMs": 49.354323, "p95Ms": 57.19651},
+    "lowTarget": {"resolution": "960x600", "medianMs": 38.42849, "p95Ms": 44.782239},
+    "notes": "GL correctness passed. Timings differed from the earlier screen-on run; do not treat 59 FPS as a sustained/thermal guarantee. A live presented-frame repeat was blocked by the locked screen, not counted as a gameplay regression."
+  },
+  "changes": [
+    "Evaluate material grain/patch noise only in branches that consume it; skip when footprint makes its weight zero",
+    "Compile a raster-only composite without RT upsampling/reflection code",
+    "Generate a 256x256 R8 hash texture once per GL context for the raster shader; retain procedural generation and distinct material patterns. Cached noise repeats every 256 cells and is quantized, not bit-identical to analytic noise",
+    "Low surface scale is relative to a 1,024,000-pixel base budget; other tiers and full-resolution HUD are unchanged",
+    "Reset draw-buffer mapping when a framebuffer shrinks from two color attachments to one",
+    "Bhop arms on a fresh airborne crouch after Jump release; landing opens a 180ms window; only a successful new jump grants speed, capped at 2.5x reference sprint speed",
+    "Missed timing/prolonged slide decays momentum rather than resetting speed in one frame; held Jump is not automatic bhop",
+    "Resolve vertical collisions to voxel faces so grounded does not flicker above the floor; preserve ceiling clearance",
+    "Hints and Android key-event tests use remappable actions rather than hardcoded Shift/Space"
+  ],
+  "verification": {
+    "initialJvmTests": 223, "initialJvmFailures": 0,
+    "newFloorContactRegressionBeforeFix": {"tests": 2, "failures": 1},
+    "androidBhopAndFramebufferAfterFix": {"tests": 6, "failures": 0},
+    "androidGpuAfterPhysicsFix": {"tests": 1, "failures": 0},
+    "initialLint": {"errors": 0, "existingWarnings": 80},
+    "finalJvmAndBuild": {"tests": 225, "failures": 0, "errors": 0, "buildTasks": ["assembleDebug", "testDebugUnitTest"], "buildResult": "SUCCESS; retry after external cleanup stopped, with --no-configuration-cache --no-build-cache"},
+    "finalLint": "Not rerun during the subsequent installation request. Earlier lint had zero errors; the final lint attempt was interrupted by external cleanup.",
+    "additionalPresentedMaps": "BLOCKED: tablet screen locked; added Village and battlefield_alps test cases have not yet been compiled/run. The earlier Warehouse screen-on result remains the only successful live-FPS measurement.",
+    "floorContactRegressionAfterFix": "Both isolated PhysicsTest cases pass in the final 225-test JVM suite; delayed-landing Android bhop chains also passed previously"
+  },
+  "deployment": "Latest app including Physics fix rebuilt successfully after cleanup stopped, then updated on SM-T720 via adb install -r (Success). No uninstall or user-data reset. Local app/build/outputs/apk/debug/app-debug.apk is available again."
+}

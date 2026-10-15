@@ -1,0 +1,22 @@
+
+=== title-a-v2.svg  (6908 bytes)
+viewBox 0 0 640 256 · aspect 2.5 (wide)
+colours 3: #121923 #f1f5f7 #ff8a18 · gradients 0 · anchors 424
+margins L36.1 R44.0 T8.0 B17.4 · bbox fill 0.788
+▲ WARN [complex] 424 anchor points — more than 95% of comparable reference logos (median 75.0). Simplify: fewer points, merged shapes, less detail.
+production-readiness score: 92/100 (heuristic)
+
+=== title-b-v2.svg  (4666 bytes)
+viewBox 0 0 640 256 · aspect 2.5 (wide)
+colours 3: #121923 #34d5de #f1f5f7 · gradients 0 · anchors 286
+margins L36.1 R50.0 T18.2 B18.0 · bbox fill 0.743
+· INFO [complexity] 286 anchor points (library median 75.0, p75 155.0). Check every point earns its place.
+production-readiness score: 99/100 (heuristic)
+
+=== title-c-v2.svg  (6927 bytes)
+viewBox 0 0 640 256 · aspect 2.5 (wide)
+colours 3: #121923 #f1f5f7 #b9f142 · gradients 0 · anchors 424
+margins L20.0 R27.0 T18.2 B21.4 · bbox fill 0.783
+▲ WARN [complex] 424 anchor points — more than 95% of comparable reference logos (median 75.0). Simplify: fewer points, merged shapes, less detail.
+▲ WARN [near-miss-angle] 26 straight edge(s) are 0.3–3° off a clean angle — they read as mistakes. Snap them: 121.0° (→120°) len 61.1 at (139,79); 120.8° (→120°) len 120.7 at (205,26); 72.8° (→75°) len 54.3 at (348,78); 72.8° (→75°) len 54.3 at (301,78); 121.0° (→120°) len 61.1 at (135,71); 120.8° (→120°) len 120.7 at (201,18) …. (Expected — and fine — for type set on a curve or deliberately rotated elements.)
+production-readiness score: 84/100 (heuristic)

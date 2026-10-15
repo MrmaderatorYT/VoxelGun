@@ -1,0 +1,30 @@
+Source: actual Android JNI Match / GameRenderer GLES framebuffer; no generated art or image retouching.
+Map: battlefield_city; seed: 4242; mode: BATTLE_FIELD
+Capture actors: 21 (one invisible observer, ten blue and ten red); authored geometry unchanged.
+Renderer: raster + TAA; bloom=false; brightness=0.82; contrast=1.08; 2400x1080; renderScale=1; FOV=68; viewDistance=190; adaptive=false
+GPU: Mali-G710
+GL: OpenGL ES 3.2 v1.r54p3-00eac0.1848e3b066182d5bb5a345ab256f13ee
+Camera: (311.500, 4.600, 319.500); lookAt: (311.500, 4.100, 277.500); yaw=0.000000; pitch=-0.011904
+Frozen after real attacks: 8; tracers: 8; particles: 206; native LOS-visible actors: 20
+Effects: actual Effects.explosion(341.5,3.4,291.5,5), aged 0.14s, and Match.tryFire hitscans.
+Observer knife mesh temporarily suppressed through existing mesh=null path; restored before renderer cleanup.
+Actor 1: RED RIFLEMAN BULLPUP at (318.50, 3.00, 294.50), crouch=false
+Actor 2: BLUE SNIPER SCOUT_V at (322.50, 3.00, 299.50), crouch=true
+Actor 3: RED MACHINE_GUNNER NEGEV_M at (327.50, 3.00, 293.50), crouch=false
+Actor 4: BLUE RIFLEMAN FALCON at (314.50, 3.00, 315.50), crouch=false
+Actor 5: RED SNIPER BARRETT_M at (326.50, 3.00, 260.50), crouch=false
+Actor 6: BLUE MACHINE_GUNNER BULLDOG_LMG at (321.50, 3.00, 310.50), crouch=false
+Actor 7: RED RIFLEMAN BULLPUP at (335.50, 3.00, 289.50), crouch=true
+Actor 8: BLUE SNIPER AWM_X at (329.50, 3.00, 293.50), crouch=false
+Actor 9: RED MACHINE_GUNNER NEGEV_M at (312.50, 3.00, 287.50), crouch=false
+Actor 10: BLUE RIFLEMAN FALCON at (327.50, 3.00, 305.50), crouch=true
+Actor 11: RED SNIPER DRAGUNOV_S at (344.50, 3.00, 267.50), crouch=false
+Actor 12: BLUE MACHINE_GUNNER BULLDOG_LMG at (335.50, 3.00, 301.50), crouch=false
+Actor 13: RED RIFLEMAN BULLPUP at (338.50, 3.00, 273.50), crouch=false
+Actor 14: BLUE SNIPER SCOUT_V at (338.50, 3.00, 297.50), crouch=false
+Actor 15: RED MACHINE_GUNNER NEGEV_M at (308.50, 3.00, 264.50), crouch=false
+Actor 16: BLUE RIFLEMAN FALCON at (307.50, 3.00, 301.50), crouch=false
+Actor 17: RED SNIPER BARRETT_M at (335.50, 3.00, 264.50), crouch=false
+Actor 18: BLUE MACHINE_GUNNER BULLDOG_LMG at (313.50, 3.00, 296.50), crouch=false
+Actor 19: RED RIFLEMAN BULLPUP at (317.50, 3.00, 266.50), crouch=true
+Actor 20: BLUE SNIPER AWM_X at (319.50, 3.00, 291.50), crouch=false
