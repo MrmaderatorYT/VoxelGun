@@ -4,7 +4,7 @@
     <string name="battlefield_conquest">Захоплення: 5 секторів · квитки · відродження в загоні</string>
     <string name="menu_play">ГРАТИ</string>
     <string name="menu_settings">НАЛАШТУВАННЯ</string>
-    <string name="menu_stats">СТАТИСТИКА</string>
+    <string name="menu_stats">КАР’ЄРА</string>
     <string name="menu_quit">ВИХІД</string>
     <string name="menu_back">Назад</string>
     <string name="menu_start_match">ПОЧАТИ МАТЧ</string>
@@ -26,15 +26,15 @@
     <string name="settings_controls">Керування</string>
     <string name="settings_audio">Звук</string>
     <string name="settings_quality">Пресет якості</string>
-    <string name="settings_raytracing">Трасування променів</string>
+    <string name="settings_raytracing">Програмне трасування променів</string>
     <string name="settings_rt_shadows">RT тіні</string>
     <string name="settings_rt_gi">RT глобальне освітлення</string>
     <string name="settings_rt_reflections">RT відбиття</string>
-    <string name="settings_denoiser">Темпоральний деноїзер</string>
+    <string name="settings_denoiser">Прибирання шуму RT</string>
     <string name="settings_taa">Темпоральне згладжування</string>
     <string name="settings_bloom">Bloom</string>
     <string name="settings_render_scale">Масштаб рендера</string>
-    <string name="settings_rt_resolution">Роздільність RT</string>
+    <string name="settings_rt_resolution">Межа роздільності RT</string>
     <string name="settings_fov">Кут огляду</string>
     <string name="settings_sensitivity">Чутливість огляду</string>
     <string name="settings_ads_sensitivity">Чутливість у прицілі</string>
@@ -74,7 +74,7 @@
     <string name="keys_press">Натисни клавішу для «%1$s»</string>
     <string name="keys_press_cancel">Скасувати</string>
     <string name="settings_frame_rate">Частота кадрів</string>
-    <string name="settings_adaptive_performance">Адаптивні 60 FPS</string>
+    <string name="settings_adaptive_performance">Адаптивна продуктивність</string>
     <string name="frame_rate_display">Як дисплей</string>
     <string name="settings_picture">Зображення</string>
     <string name="settings_contrast">Контраст</string>
@@ -192,4 +192,10 @@
     <string name="hud_slot_saved">Збережено у слот %1$d</string>
     <string name="hud_slot_loaded">Слот %1$d завантажено</string>
     <string name="hud_slot_empty">Утримуйте, щоб зберегти поточну розкладку</string>
+    <string name="graphics_budget_hint">Програмне RT працює на GPU телефона; це не NVIDIA RTX. Роздільність обмежена бюджетом пікселів. Почни з Medium і 60 FPS; для меншого нагріву — 30 FPS. Адаптивний режим може знижувати ефекти під час гри.</string>
+    <string name="graphics_custom">Власні · на основі %1$s</string>
+    <string name="graphics_low">Економний · звичайне освітлення · найменше навантаження</string>
+    <string name="graphics_medium">Збалансований · чіткіше зображення та згладжування</string>
+    <string name="graphics_high">М’які трасовані тіні сонця · обмежене навантаження</string>
+    <string name="graphics_ultra">Програмне RT · непряме освітлення й відбиття · найбільше навантаження</string>
 </resources>

@@ -16,19 +16,24 @@ uniform float uFogDensity;
 uniform float uRayTracing;       // 0 = analytic fallback, 1 = traced lighting
 uniform float uReflectionStrength;
 uniform float uPlayerHighlights;
+uniform mat4 uView;
 
 #ifndef RASTER_ONLY
 /** Depth-aware upsample of the half resolution lighting buffer. */
 vec4 upsampleLight(vec2 uv, float centerDepth) {
-    vec2 texel = uLightTexelSize;
+    vec2 pixel = uv / uLightTexelSize - 0.5;
+    vec2 base = floor(pixel);
+    vec2 fraction = fract(pixel);
     vec4 result = vec4(0.0);
     float weightSum = 0.0;
-    for (int y = -1; y <= 1; y++) {
-        for (int x = -1; x <= 1; x++) {
-            vec2 offset = vec2(float(x), float(y)) * texel;
-            vec2 sampleUv = clamp(uv + offset, vec2(0.0), vec2(1.0));
+    // Four depth-weighted bilinear taps instead of nine equally weighted neighbours.
+    for (int y = 0; y < 2; y++) {
+        for (int x = 0; x < 2; x++) {
+            vec2 sampleUv = (base + vec2(float(x), float(y)) + 0.5) * uLightTexelSize;
+            float spatial = (x == 0 ? 1.0 - fraction.x : fraction.x)
+                    * (y == 0 ? 1.0 - fraction.y : fraction.y);
             float sampleDepth = texture(uRtDepth, sampleUv).r;
-            float weight = 1.0 / (1.0 + abs(sampleDepth - centerDepth) * 8.0);
+            float weight = spatial / (1.0 + abs(sampleDepth - centerDepth) * 8.0);
             result += texture(uLight, sampleUv) * weight;
             weightSum += weight;
         }
@@ -73,7 +78,8 @@ void main() {
     uint materialId = uint(surface.b * 255.0 + 0.5);
     bool character = surface.a > 0.01 && surface.a < 0.08;
     bool viewModel = surface.a > 0.08 && surface.a < 0.12;
-    float occlusion = character || viewModel ? 1.0 : surface.a;
+    float occlusion = viewModel ? clamp((surface.a - 0.085) / 0.030, 0.15, 1.0)
+            : character ? 1.0 : surface.a;
     Material material;
     if (character || viewModel) {
         material = readMaterial(materialId);
@@ -116,9 +122,11 @@ void main() {
     // without turning the view model into an unlit HUD sprite.
     if (viewModel) {
         vec3 cameraKey = normalize(vec3(-0.45, 0.72, 0.52));
-        float key = 0.52 + max(dot(normal, cameraKey), 0.0) * 0.34;
+        vec3 cameraNormal = mat3(uView) * normal;
+        float key = 0.40 + max(dot(cameraNormal, cameraKey), 0.0) * 0.46;
         float rim = pow(1.0 - max(dot(normal, view), 0.0), 2.5);
-        vec3 readable = material.albedo * key + vec3(0.08, 0.10, 0.13) * rim;
+        vec3 readable = (material.albedo * key + vec3(0.05, 0.065, 0.08) * rim)
+                * mix(0.55, 1.0, occlusion);
         color = max(color, readable + material.emissive);
     }
 

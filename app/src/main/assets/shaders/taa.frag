@@ -18,6 +18,10 @@ uniform float uBlend;
 
 void main() {
     vec3 current = texture(uCurrent, vUv).rgb;
+    if (uBlend <= 0.0) {
+        outColor = vec4(current, 1.0);
+        return;
+    }
 
     // Use the closest fragment in the neighbourhood for the velocity lookup; this keeps
     // silhouettes from dragging the background with them.

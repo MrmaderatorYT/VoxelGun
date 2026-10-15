@@ -111,23 +111,26 @@
                 android:layout_width="240dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
+                android:visibility="gone"
                 android:text="@string/match_performance_details" />
         </LinearLayout>
     </FrameLayout>
 
     <!-- Results. -->
-    <FrameLayout
+    <ScrollView
         android:id="@+id/results_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/bg_overlay_scrim"
+        android:fillViewport="true"
+        android:padding="20dp"
         android:visibility="gone">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:gravity="center_horizontal"
+            android:gravity="center"
             android:orientation="vertical">
 
             <TextView
@@ -180,5 +183,5 @@
                     android:text="@string/match_continue" />
             </LinearLayout>
         </LinearLayout>
-    </FrameLayout>
+    </ScrollView>
 </FrameLayout>

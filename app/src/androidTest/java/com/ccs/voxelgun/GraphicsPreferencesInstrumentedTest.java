@@ -75,6 +75,16 @@ public class GraphicsPreferencesInstrumentedTest {
             GameSettings nextMatch = new GameSettings(isolated);
             assertEquals(RenderSettings.Quality.HIGH, nextMatch.quality);
             assertEquals(1.35f, nextMatch.gamma, .0001f);
+            for (RenderSettings.Quality quality : RenderSettings.Quality.values()) {
+                menu.applyPreset(quality);
+                menu.rtShadows = menu.rtGlobalIllumination = menu.rtReflections = true;
+                menu.save();
+                RenderSettings custom = new GameSettings(isolated).toRenderSettings();
+                assertTrue(custom.tracingActive());
+                assertTrue(custom.shadowSteps > 0);
+                assertEquals(1, custom.giSamples);
+                assertTrue(custom.giSteps > 0);
+            }
         } finally { base.deleteSharedPreferences(file); }
     }
 }

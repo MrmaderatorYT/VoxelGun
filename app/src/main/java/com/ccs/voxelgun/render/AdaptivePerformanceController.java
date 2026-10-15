@@ -56,6 +56,10 @@ public final class AdaptivePerformanceController {
      * @return true when render targets should be resized to {@link #renderScale()}
      */
     public boolean addFrame(float frameSeconds, int targetFps) {
+        return addFrame(frameSeconds, targetFps, true);
+    }
+
+    public boolean addFrame(float frameSeconds, int targetFps, boolean allowRecovery) {
         if (!Float.isFinite(frameSeconds) || frameSeconds <= 0f || targetFps <= 0) {
             return false;
         }
@@ -64,7 +68,7 @@ public final class AdaptivePerformanceController {
             return false;
         }
 
-        sampleSeconds += Math.min(frameSeconds, 0.1f);
+        sampleSeconds += Math.min(frameSeconds, 1f);
         sampleFrames++;
         if (sampleSeconds < SAMPLE_SECONDS) {
             return false;
@@ -86,7 +90,7 @@ public final class AdaptivePerformanceController {
             bottomedWindows = 0;
             // Conditions can improve — a quiet corridor after a firefight, or a scene the GPU
             // handles easily — so a halved target is given back rather than kept for the match.
-            if (recommendedCap > 0 && ++recoveredWindows >= FAST_WINDOWS_TO_RAISE
+            if (allowRecovery && recommendedCap > 0 && ++recoveredWindows >= FAST_WINDOWS_TO_RAISE
                     && renderScale >= configuredScale - 0.001f) {
                 recommendedCap = 0;
                 recoveredWindows = 0;
@@ -114,7 +118,7 @@ public final class AdaptivePerformanceController {
             return false;
         }
 
-        if (measuredFps >= targetFps * 0.985f
+        if (allowRecovery && measuredFps >= targetFps * 0.985f
                 && renderScale < configuredScale - 0.001f) {
             fastWindows++;
             if (fastWindows >= FAST_WINDOWS_TO_RAISE) {
@@ -160,6 +164,6 @@ public final class AdaptivePerformanceController {
     }
 
     private static float clampScale(float scale) {
-        return Math.max(MIN_RENDER_SCALE, Math.min(1f, scale));
+        return Float.isFinite(scale) ? Math.max(MIN_RENDER_SCALE, Math.min(1f, scale)) : .75f;
     }
 }

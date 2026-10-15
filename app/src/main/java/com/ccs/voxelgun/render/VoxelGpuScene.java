@@ -33,12 +33,24 @@ public final class VoxelGpuScene {
     private int brickY;
     private int brickZ;
     private boolean tracingSupported;
+    private boolean tracingEnabled;
     private int[] chunkVersions;
     private int observedRevision;
     private int editCursor;
     private final ByteBuffer editBuffer = ByteBuffer.allocateDirect(16 * 16 * 16);
 
     public void upload(VoxelWorld world) {
+        upload(world, true);
+    }
+
+    public void setTracingEnabled(VoxelWorld world, boolean enabled) {
+        boolean desired = enabled && tracingSupported;
+        if (desired != tracingEnabled) upload(world, desired);
+    }
+
+    public boolean tracingEnabled() { return tracingEnabled; }
+
+    public void upload(VoxelWorld world, boolean enableTracing) {
         release();
         sizeX = world.sizeX();
         sizeY = world.sizeY();
@@ -50,7 +62,8 @@ public final class VoxelGpuScene {
         int[] limit = new int[1];
         GLES30.glGetIntegerv(GLES30.GL_MAX_3D_TEXTURE_SIZE, limit, 0);
         tracingSupported = sizeX <= limit[0] && sizeY <= limit[0] && sizeZ <= limit[0];
-        if (!tracingSupported) {
+        tracingEnabled = enableTracing && tracingSupported;
+        if (!tracingEnabled) {
             // Geometry still renders in full detail. Avoid an invalid oversized RT volume.
             uploadRasterFallback(world);
             return;
@@ -105,7 +118,7 @@ public final class VoxelGpuScene {
 
     /** Bounded partial uploads; deletions cannot invalidate conservative empty-space distances. */
     public boolean updateEdits(VoxelWorld world) {
-        if (!tracingSupported) return false;
+        if (!tracingEnabled) return false;
         if (observedRevision != world.revision()) {
             observedRevision = world.revision(); editCursor = 0;
         }
@@ -148,7 +161,8 @@ public final class VoxelGpuScene {
         }
         brickX = brickY = brickZ = 1;
         uploadPalette();
-        uploadLights(EmissiveLights.build(world));
+        // Raster shaders never sample emissive light lists. Avoid scanning the whole map.
+        lightCount = 0;
         GLES30.glBindTexture(GLES30.GL_TEXTURE_3D, 0);
     }
 

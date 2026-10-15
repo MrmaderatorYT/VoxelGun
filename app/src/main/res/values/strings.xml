@@ -7,7 +7,7 @@
     <!-- Menu -->
     <string name="menu_play">PLAY</string>
     <string name="menu_settings">SETTINGS</string>
-    <string name="menu_stats">STATS</string>
+    <string name="menu_stats">CAREER</string>
     <string name="menu_quit">QUIT</string>
     <string name="menu_back">Back</string>
     <string name="menu_start_match">START MATCH</string>
@@ -33,15 +33,15 @@
     <string name="settings_controls">Controls</string>
     <string name="settings_audio">Audio</string>
     <string name="settings_quality">Quality preset</string>
-    <string name="settings_raytracing">Ray tracing</string>
+    <string name="settings_raytracing">Software ray tracing</string>
     <string name="settings_rt_shadows">RT shadows</string>
     <string name="settings_rt_gi">RT global illumination</string>
     <string name="settings_rt_reflections">RT reflections</string>
-    <string name="settings_denoiser">Temporal denoiser</string>
+    <string name="settings_denoiser">RT noise reduction</string>
     <string name="settings_taa">Temporal anti-aliasing</string>
     <string name="settings_bloom">Bloom</string>
     <string name="settings_render_scale">Render scale</string>
-    <string name="settings_rt_resolution">RT resolution</string>
+    <string name="settings_rt_resolution">RT resolution ceiling</string>
     <string name="settings_fov">Field of view</string>
     <string name="settings_sensitivity">Look sensitivity</string>
     <string name="settings_ads_sensitivity">Aim sensitivity</string>
@@ -82,7 +82,7 @@
     <string name="keys_press">Press a key for “%1$s”</string>
     <string name="keys_press_cancel">Cancel</string>
     <string name="settings_frame_rate">Frame rate</string>
-    <string name="settings_adaptive_performance">Adaptive 60 FPS</string>
+    <string name="settings_adaptive_performance">Adaptive performance</string>
     <string name="frame_rate_display">Display</string>
     <string name="settings_picture">Picture</string>
     <string name="settings_contrast">Contrast</string>
@@ -200,4 +200,10 @@
     <string name="hud_slot_saved">Saved to slot %1$d</string>
     <string name="hud_slot_loaded">Slot %1$d loaded</string>
     <string name="hud_slot_empty">Hold to save the current layout</string>
+    <string name="graphics_budget_hint">Software RT uses the phone’s GPU; it is not NVIDIA RTX. Resolution is limited to a mobile pixel budget. Start with Medium and 60 FPS; use 30 FPS for less heat. Adaptive performance can lower effects during play.</string>
+    <string name="graphics_custom">Custom · based on %1$s</string>
+    <string name="graphics_low">Battery saver · raster lighting · lowest GPU load</string>
+    <string name="graphics_medium">Balanced · sharper raster lighting and anti-aliasing</string>
+    <string name="graphics_high">Soft ray traced sun shadows · bounded mobile workload</string>
+    <string name="graphics_ultra">Software RT · GI and reflections · highest GPU load</string>
 </resources>

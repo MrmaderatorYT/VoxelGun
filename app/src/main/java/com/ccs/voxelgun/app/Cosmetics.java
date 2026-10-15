@@ -45,13 +45,18 @@ public final class Cosmetics {
             return model;
         }
         for (int z = 0; z < model.sizeZ; z++) {
+            int skinZ = (int) (z * model.voxelSize);
             for (int y = 0; y < model.sizeY; y++) {
+                int skinY = (int) (y * model.voxelSize);
                 for (int x = 0; x < model.sizeX; x++) {
                     int original = model.get(x, y, z) & 0xFF;
                     if (!isWeaponSurface(original)) {
                         continue;
                     }
-                    boolean stripe = ((z / 2) + x * 2 + y / 2) % 7 == 0;
+                    // Pattern coordinates are physical model units. Subdividing a voxel into
+                    // smaller detail cells must not make an equipped finish's stripes thinner.
+                    int skinX = (int) (x * model.voxelSize);
+                    boolean stripe = ((skinZ / 2) + skinX * 2 + skinY / 2) % 7 == 0;
                     model.set(x, y, z, skinMaterial(value, original, stripe));
                 }
             }

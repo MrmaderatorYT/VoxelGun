@@ -14,6 +14,9 @@ public final class Framebuffer {
 
     /** How many colour attachments the last {@link #resize} actually allocated. */
     private int activeAttachments;
+    private int[] formats;
+    private int textureFilter;
+    private boolean allocatedDepth;
 
     public Framebuffer(int attachments) {
         colorTextures = new int[attachments];
@@ -55,13 +58,20 @@ public final class Framebuffer {
         // Callers may ask for fewer attachments than the buffer can hold — the G-buffer drops its
         // motion vectors when nothing reads them — so the active count follows the format list.
         if (this.width == width && this.height == height && colorTextures[0] != 0
-                && activeAttachments == internalFormats.length) {
+                && java.util.Arrays.equals(formats, internalFormats)
+                && textureFilter == filter && allocatedDepth == withDepth) {
             return;
         }
-        activeAttachments = Math.min(internalFormats.length, colorTextures.length);
+        if (internalFormats.length == 0 || internalFormats.length > colorTextures.length) {
+            throw new IllegalArgumentException("Invalid attachment count");
+        }
         this.width = Math.max(1, width);
         this.height = Math.max(1, height);
         release(false);
+        activeAttachments = internalFormats.length;
+        formats = internalFormats.clone();
+        textureFilter = filter;
+        allocatedDepth = withDepth;
 
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, handle[0]);
         for (int i = 0; i < activeAttachments; i++) {
@@ -134,20 +144,51 @@ public final class Framebuffer {
         GLES30.glViewport(0, 0, width, height);
     }
 
+    /** Probe actual framebuffer support; extension strings alone are insufficient on some GPUs. */
+    public static boolean supports(int format) {
+        return supports(false, format);
+    }
+
+    public static boolean supports(boolean withDepth, int... formats) {
+        Framebuffer probe = new Framebuffer(formats.length);
+        try {
+            probe.resize(4, 4, formats, GLES30.GL_NEAREST, withDepth);
+            return true;
+        } catch (IllegalStateException unsupported) {
+            return false;
+        } finally {
+            probe.release(true);
+        }
+    }
+
     public void release(boolean deleteFramebuffer) {
+        if (handle[0] == 0 || (!deleteFramebuffer && activeAttachments == 0 && depthTexture == 0)) return;
+        // Deleted images remain alive while attached to an unbound FBO. Explicitly detach them.
+        int[] previous = new int[1];
+        GLES30.glGetIntegerv(GLES30.GL_FRAMEBUFFER_BINDING, previous, 0);
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, handle[0]);
         for (int i = 0; i < colorTextures.length; i++) {
+            GLES30.glFramebufferTexture2D(GLES30.GL_FRAMEBUFFER, GLES30.GL_COLOR_ATTACHMENT0 + i,
+                    GLES30.GL_TEXTURE_2D, 0, 0);
             if (colorTextures[i] != 0) {
                 GLES30.glDeleteTextures(1, new int[]{colorTextures[i]}, 0);
                 colorTextures[i] = 0;
             }
         }
+        GLES30.glFramebufferTexture2D(GLES30.GL_FRAMEBUFFER, GLES30.GL_DEPTH_ATTACHMENT,
+                GLES30.GL_TEXTURE_2D, 0, 0);
         if (depthTexture != 0 && ownsDepth) {
             GLES30.glDeleteTextures(1, new int[]{depthTexture}, 0);
         }
         depthTexture = 0;
         ownsDepth = false;
+        activeAttachments = 0;
+        formats = null;
         if (deleteFramebuffer) {
             GLES30.glDeleteFramebuffers(1, handle, 0);
+            if (previous[0] == handle[0]) previous[0] = 0;
+            handle[0] = 0;
         }
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, previous[0]);
     }
 }

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="career_heading">Особисті цілі</string>
+    <string name="career_hint">Постійні цілі. Нагороди нараховуються автоматично після бойових матчів. Тир і тренування руху не враховуються.</string>
+    <string name="goal_kills">Перші успіхи · здійсни 25 вбивств</string>
+    <string name="goal_headshots">Влучний стрілець · 20 вбивств у голову</string>
+    <string name="goal_wins">Переможець · виграй 5 матчів</string>
+    <string name="goal_objectives">Командний гравець · виграй 3 матчі за цілі</string>
+    <string name="goal_modes">Дослідник · заверши 4 різні бойові режими</string>
+    <string name="goal_wave">Вцілілий · досягни 10-ї хвилі зомбі</string>
+    <string name="career_progress">%1$d / %2$d · +%3$d ¢ · +%4$d XP</string>
+    <string name="career_completed">Виконано · нагороду отримано</string>
+    <string name="career_cosmetic">%1$s · відкриття: %2$s</string>
+    <string name="mastery_heading">Майстерність зброї</string>
+    <string name="mastery_hint">Кожна зброя: бронза за 25 вбивств (+100 ¢ / 150 XP), срібло за 100 (+250 ¢ / 400 XP), золото за 250 (+500 ¢ / 800 XP та покриття Gold). Попередня бойова статистика враховується; нагороди за неї надійдуть після наступного бойового матчу. Покриття відкривається для всієї зброї.</string>
+    <string name="mastery_bronze">Бронза</string>
+    <string name="mastery_silver">Срібло</string>
+    <string name="mastery_gold">Золото</string>
+    <string name="mastery_unranked">Без рангу</string>
+    <string name="mastery_title">%1$s · %2$s</string>
+    <string name="mastery_progress">%1$d / %2$d вбивств до рангу «%3$s»</string>
+    <string name="mastery_complete">%1$d вбивств · усі ступені здобуто</string>
+    <string name="mastery_award">%1$s · майстерність %2$d/3</string>
+    <string name="career_result_bonus">Цілі та майстерність: +%1$d ¢ · +%2$d XP</string>
+    <string name="career_result_next">Наступна ціль: %1$s · %2$d / %3$d</string>
+    <string name="career_practice">Тренування · кар’єрні нагороди здобуваються в бойових матчах</string>
+    <string name="career_reward_mint">Рукавиці Mint</string>
+    <string name="career_reward_core">Брелок Pocket core</string>
+    <string name="career_reward_arctic">Покриття Arctic</string>
+    <string name="career_reward_gold">Покриття Gold</string>
+</resources>

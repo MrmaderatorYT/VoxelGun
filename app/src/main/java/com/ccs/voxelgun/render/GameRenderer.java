@@ -92,6 +92,11 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
     private int traceWidth = 1;
     private int traceHeight = 1;
     private int hdrFormat = GLES30.GL_RGBA16F;
+    private boolean floatTargetsSupported;
+    private volatile float displayRefreshRate = 60f;
+    private int sampledTargetFps;
+
+    public void setDisplayRefreshRate(float hz) { displayRefreshRate = hz; }
     /** Asks the view for a smaller surface buffer; see {@link #requestSurfaceSize}. */
     public interface SurfaceSizer {
         void requestSurfaceSize(int width, int height);
@@ -133,6 +138,7 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
         this.match = match;
         this.input = input;
         this.settings = settings;
+        settings.normalize();
         thermalMonitor = new com.ccs.voxelgun.app.ThermalMonitor(context);
         configuredViewDistance = settings.viewDistance;
         adaptiveWorkload.reset(configuredViewDistance);
@@ -158,41 +164,40 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
             release();
         }
         String extensions = GLES30.glGetString(GLES30.GL_EXTENSIONS);
-        boolean halfFloatRenderable = extensions != null
-                && (extensions.contains("GL_EXT_color_buffer_half_float")
-                || extensions.contains("GL_EXT_color_buffer_float"));
-        // On a tile-based GPU this pass chain is bandwidth bound, and RGBA16F costs eight bytes
-        // a pixel for an alpha nobody reads. R11F_G11F_B10F keeps HDR range at four.
-        hdrFormat = halfFloatRenderable ? GLES30.GL_R11F_G11F_B10F : GLES30.GL_RGBA8;
-        if (!halfFloatRenderable) {
-            // Without renderable float targets the traced buffers cannot hold radiance or the
-            // linear depth the reprojection needs, so drop to the raster-only preset.
-            settings.applyPreset(RenderSettings.Quality.LOW);
+        boolean fullFloat = extensions != null && extensions.contains("GL_EXT_color_buffer_float");
+        boolean halfFloat = fullFloat || (extensions != null
+                && extensions.contains("GL_EXT_color_buffer_half_float"));
+        floatTargetsSupported = halfFloat
+                && Framebuffer.supports(true, GLES30.GL_RGBA8, GLES30.GL_RG16F)
+                && Framebuffer.supports(false, GLES30.GL_RGBA16F, GLES30.GL_R16F, GLES30.GL_RGBA16F);
+        hdrFormat = fullFloat && Framebuffer.supports(GLES30.GL_R11F_G11F_B10F)
+                ? GLES30.GL_R11F_G11F_B10F
+                : floatTargetsSupported ? GLES30.GL_RGBA16F : GLES30.GL_RGBA8;
+        settings.normalize();
+        if (!floatTargetsSupported) {
+            settings.disableTracing();
+            settings.temporalAntiAliasing = false;
         }
         adaptivePerformance.reset(settings.renderScale);
 
+        rtShader = rtReflectShader = atrousShader = compositeShader = null;
+        taaShader = bloomDownShader = bloomUpShader = null;
         library = new ShaderLibrary(context.getAssets());
         gbufferShader = library.create("gbuffer", "gbuffer.vert", "gbuffer.frag");
-        rtShader = library.create("rt", "fullscreen.vert", "rt.frag");
-        rtReflectShader = library.create("rt_reflect", "fullscreen.vert", "rt.frag", "REFLECTIONS");
-        atrousShader = library.create("atrous", "fullscreen.vert", "atrous.frag");
-        compositeShader = library.create("composite", "fullscreen.vert", "composite.frag");
         rasterCompositeShader = library.create("composite_raster", "fullscreen.vert",
                 "composite.frag", "RASTER_ONLY", "CACHED_SURFACE_NOISE");
         glassShader = library.create("glass", "gbuffer.vert", "glass.frag");
         particleShader = library.create("particle", "particle.vert", "particle.frag");
         tracerShader = library.create("tracer", "tracer.vert", "tracer.frag");
         decalShader = library.create("decal", "decal.vert", "decal.frag");
-        taaShader = library.create("taa", "fullscreen.vert", "taa.frag");
-        bloomDownShader = library.create("bloom_down", "fullscreen.vert", "bloom_down.frag");
-        bloomUpShader = library.create("bloom_up", "fullscreen.vert", "bloom_up.frag");
         tonemapShader = library.create("tonemap", "fullscreen.vert", "tonemap.frag");
 
-        scene.upload(match.world());
+        scene.upload(match.world(), settings.tracingActive());
         surfaceNoise.create();
         if (!scene.tracingSupported()) {
-            settings.applyPreset(RenderSettings.Quality.LOW);
+            settings.disableTracing();
         }
+        prepareOptionalShaders();
         if (match.world().sizeX() >= 640) {
             settings.viewDistance = Math.max(settings.viewDistance, 240f);
         }
@@ -252,6 +257,29 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
         allocateTargets();
     }
 
+    private void prepareOptionalShaders() {
+        if (settings.tracingActive()) {
+            if (rtShader == null) rtShader = library.create("rt", "fullscreen.vert", "rt.frag");
+            if (settings.rtReflections && rtReflectShader == null) {
+                rtReflectShader = library.create("rt_reflect", "fullscreen.vert", "rt.frag", "REFLECTIONS");
+            }
+            if (settings.denoiser && atrousShader == null) {
+                atrousShader = library.create("atrous", "fullscreen.vert", "atrous.frag");
+            }
+            if (compositeShader == null) {
+                compositeShader = library.create("composite", "fullscreen.vert", "composite.frag",
+                        "CACHED_SURFACE_NOISE");
+            }
+        }
+        if (settings.temporalAntiAliasing && taaShader == null) {
+            taaShader = library.create("taa", "fullscreen.vert", "taa.frag");
+        }
+        if (settings.bloom && bloomDownShader == null) {
+            bloomDownShader = library.create("bloom_down", "fullscreen.vert", "bloom_down.frag");
+            bloomUpShader = library.create("bloom_up", "fullscreen.vert", "bloom_up.frag");
+        }
+    }
+
     private void allocateTargets() {
         float renderScale = settings.adaptivePerformance
                 ? adaptivePerformance.renderScale() : settings.renderScale;
@@ -260,18 +288,21 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
         // Drive the window's own buffer down to the render resolution, so nothing anywhere in the
         // frame — including the pass that writes to the screen — pays for pixels being thrown
         // away. The request is asynchronous: this frame still uses whatever the surface is now.
-        int desiredWidth = Math.max(320, Math.round(displayWidth * renderScale));
-        int desiredHeight = Math.max(180, Math.round(displayHeight * renderScale));
+        int desiredWidth = Math.max(1, (int) (displayWidth * renderScale));
+        int desiredHeight = Math.max(1, (int) (displayHeight * renderScale));
         if (surfaceSizer != null && (desiredWidth != requestedSurfaceWidth
                 || desiredHeight != requestedSurfaceHeight)) {
             requestedSurfaceWidth = desiredWidth;
             requestedSurfaceHeight = desiredHeight;
             surfaceSizer.requestSurfaceSize(desiredWidth, desiredHeight);
         }
-        renderWidth = surfaceWidth;
-        renderHeight = surfaceHeight;
-        traceWidth = Math.max(160, Math.round(renderWidth * settings.traceScale));
-        traceHeight = Math.max(90, Math.round(renderHeight * settings.traceScale));
+        // Also bound the offscreen targets during asynchronous surface resizing and in tests
+        // which do not attach a SurfaceSizer.
+        renderWidth = Math.min(surfaceWidth, desiredWidth);
+        renderHeight = Math.min(surfaceHeight, desiredHeight);
+        float traceScale = RenderResolution.traceScale(renderWidth, renderHeight, settings.traceScale);
+        traceWidth = Math.max(1, (int) (renderWidth * traceScale));
+        traceHeight = Math.max(1, (int) (renderHeight * traceScale));
         boolean tracing = settings.tracingActive();
         boolean denoising = tracing && settings.denoiser && settings.denoisePasses > 0;
 
@@ -286,14 +317,13 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
                         : new int[]{GLES30.GL_RGBA8},
                 GLES30.GL_NEAREST, true);
         hdr.resize(renderWidth, renderHeight, new int[]{hdrFormat}, GLES30.GL_LINEAR, false);
-        hdr.attachExternalDepth(gbuffer.depthTexture());
+
 
         // The trace buffer's second target carries linear depth and needs real precision, so it
         // stays half float wherever that is renderable at all.
-        int[] traceFormats = {hdrFormat, GLES30.GL_RGBA16F, hdrFormat};
-        if (hdrFormat == GLES30.GL_RGBA8) {
-            traceFormats[1] = GLES30.GL_RGBA8;
-        }
+        int[] traceFormats = settings.rtReflections
+                ? new int[]{GLES30.GL_RGBA16F, GLES30.GL_R16F, GLES30.GL_RGBA16F}
+                : new int[]{GLES30.GL_RGBA16F, GLES30.GL_R16F};
         for (Framebuffer buffer : trace) {
             if (tracing) {
                 buffer.resize(traceWidth, traceHeight, traceFormats, GLES30.GL_LINEAR, false);
@@ -303,7 +333,7 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
         }
         for (Framebuffer buffer : denoise) {
             if (denoising) {
-                buffer.resize(traceWidth, traceHeight, new int[]{hdrFormat}, GLES30.GL_LINEAR,
+                buffer.resize(traceWidth, traceHeight, new int[]{GLES30.GL_RGBA16F}, GLES30.GL_LINEAR,
                         false);
             } else {
                 buffer.release(false);
@@ -318,6 +348,7 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
             }
         }
         taaHistoryValid = false;
+        resetTraceHistory = true;
 
         int width = renderWidth;
         int height = renderHeight;
@@ -358,12 +389,19 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
     /** Re-allocates render targets after the quality settings change. */
     public void onSettingsChanged() {
         if (initialised) {
-            if (!scene.tracingSupported()) {
-                settings.applyPreset(RenderSettings.Quality.LOW);
-            }
+            settings.normalize();
+            if (!floatTargetsSupported || !scene.tracingSupported()) settings.disableTracing();
+            if (!floatTargetsSupported) settings.temporalAntiAliasing = false;
+            scene.setTracingEnabled(match.world(), settings.tracingActive());
+            prepareOptionalShaders();
             adaptivePerformance.reset(settings.renderScale);
+            if (match.world().sizeX() >= 640) {
+                settings.viewDistance = Math.max(settings.viewDistance, 240f);
+            }
             configuredViewDistance = settings.viewDistance;
             adaptiveWorkload.reset(configuredViewDistance);
+            sampledTargetFps = 0;
+            nextFrameNanos = 0;
             allocateTargets();
         }
     }
@@ -401,43 +439,54 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
 
     /** Samples achieved cadence and adapts only the live match settings, never persisted choices. */
     private void updateAdaptivePerformance(float frameSeconds) {
-        if (!settings.adaptivePerformance || input.paused) {
+        if (!settings.adaptivePerformance) {
             adaptivePerformance.pauseSampling();
             adaptiveWorkload.pauseSampling();
-            if (!settings.adaptivePerformance) settings.viewDistance = configuredViewDistance;
+            settings.viewDistance = configuredViewDistance;
             return;
         }
         int targetFps = effectiveFrameCap();
-        adaptiveWorkload.addFrame(frameSeconds, targetFps, thermalMonitor.status());
+        if (sampledTargetFps != targetFps) {
+            adaptivePerformance.pauseSampling();
+            adaptiveWorkload.pauseSampling();
+            sampledTargetFps = targetFps;
+        }
+        // Thermal status must still be consumed while a menu covers the running renderer.
+        int thermal = thermalMonitor.status();
+        adaptiveWorkload.addFrame(input.paused ? 0f : frameSeconds, targetFps, thermal);
         settings.viewDistance = adaptiveWorkload.viewDistance();
-        boolean resize = adaptivePerformance.addFrame(frameSeconds, targetFps);
-        boolean reduceQuality = adaptivePerformance.consumeQualityReductionRequest()
-                && reduceAdaptiveQuality();
-        if (resize || reduceQuality) {
+        boolean thermalShed = thermal >= 3 && (settings.tracingActive() || settings.bloom);
+        if (thermalShed) {
+            settings.disableTracing();
+            settings.bloom = false;
+        }
+        boolean resize = false;
+        boolean reduceQuality = false;
+        if (input.paused) {
+            adaptivePerformance.pauseSampling();
+            adaptiveWorkload.pauseSampling();
+        } else {
+            resize = adaptivePerformance.addFrame(frameSeconds, targetFps, thermal < 2);
+            reduceQuality = adaptivePerformance.consumeQualityReductionRequest()
+                    && reduceAdaptiveQuality();
+        }
+        if (resize || reduceQuality || thermalShed) {
+            scene.setTracingEnabled(match.world(), settings.tracingActive());
             adaptivePerformance.pauseSampling();
             allocateTargets();
         }
     }
 
-    /**
-     * Holds the render thread back to the configured frame rate.
-     *
-     * <p>Swapping already blocks on vsync, so this only ever adds delay: asking for 30 on a
-     * 60 Hz panel halves the rate, while asking for 90 on a 60 Hz panel changes nothing. The
-     * schedule self-corrects, so a slow frame does not make the next ones early.
-     */
-    /** The cap being chased: the player's choice, unless the device has proven it cannot hold it. */
+    /** Both pacing and quality adaptation chase a rate the current display can present. */
     private int effectiveFrameCap() {
-        int configured = settings.frameRateCap > 0 ? settings.frameRateCap : 60;
-        int recommended = settings.adaptivePerformance ? adaptivePerformance.recommendedFrameCap()
-                : 0;
-        int thermalCap = settings.adaptivePerformance ? adaptiveWorkload.recommendedFrameCap() : 0;
-        if (thermalCap > 0) recommended = recommended > 0 ? Math.min(recommended, thermalCap) : thermalCap;
-        return recommended > 0 ? Math.min(configured, recommended) : configured;
+        return FrameRatePolicy.resolve(settings.frameRateCap, displayRefreshRate,
+                settings.adaptivePerformance ? adaptivePerformance.recommendedFrameCap() : 0,
+                settings.adaptivePerformance && thermalMonitor.status() >= 3 ? 30 : 0,
+                input.paused);
     }
 
     private void paceFrame() {
-        int cap = settings.frameRateCap <= 0 ? 0 : effectiveFrameCap();
+        int cap = effectiveFrameCap();
         if (cap <= 0) {
             nextFrameNanos = 0L;
             return;
@@ -478,7 +527,7 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
 
         long sectionStart = System.nanoTime();
         chunks.uploadPending();
-        if (scene.updateEdits(match.world())) {
+        if (settings.tracingActive() && scene.updateEdits(match.world())) {
             taaHistoryValid = false; resetTraceHistory = true;
         }
         match.metrics().record(com.ccs.voxelgun.performance.SectionMetrics.UPLOAD,
@@ -641,6 +690,8 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
                             + match.weaponJumpOffset * (1f - adsBlend),
                     player.recoilPitch * 3.2f);
             gbufferShader.set("uViewModel", 0f);
+        } else {
+            entities.invalidateViewHistory();
         }
     }
 
@@ -660,6 +711,12 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
         shader.bindTexture("uVelocity", 6, GLES30.GL_TEXTURE_2D, gbuffer.colorTexture(1));
         shader.bindTexture("uHistoryLight", 7, GLES30.GL_TEXTURE_2D, history.colorTexture(0));
         shader.bindTexture("uHistoryDepth", 8, GLES30.GL_TEXTURE_2D, history.colorTexture(1));
+        // Denoise runs after tracing, so its previous final buffer is still intact here.
+        // Only diffuse RGB feeds back; rt.frag keeps unfiltered alpha for sun visibility.
+        int historyIndirect = settings.denoiser && settings.denoisePasses > 0
+                ? denoise[(settings.denoisePasses - 1) % 2].colorTexture(0)
+                : history.colorTexture(0);
+        shader.bindTexture("uHistoryIndirect", 10, GLES30.GL_TEXTURE_2D, historyIndirect);
         if (settings.rtReflections) {
             shader.bindTexture("uHistoryReflection", 9, GLES30.GL_TEXTURE_2D,
                     history.colorTexture(2));
@@ -669,6 +726,7 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
         shader.set("uShadowSteps", settings.rtShadows ? settings.shadowSteps : 0);
         shader.set("uGiSteps", settings.giSteps);
         shader.set("uGiRange", settings.giRange);
+        shader.set("uLocalLighting", settings.rtGlobalIllumination ? 1 : 0);
         // Fast camera motion invalidates history quickly; blend less to avoid smearing.
         float blend = MathUtil.clamp(0.93f - cameraMotion * 0.018f, 0.62f, 0.93f);
         shader.set("uHistoryBlend", resetTraceHistory ? 0f : blend);
@@ -712,6 +770,8 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
     }
 
     private void renderComposite() {
+        // Sampling attached depth is a GLES feedback loop even when depth writes are disabled.
+        hdr.attachExternalDepth(0);
         hdr.bind();
         GLES30.glDisable(GLES30.GL_DEPTH_TEST);
         GLES30.glDepthMask(false);
@@ -723,14 +783,14 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
         applySceneUniforms(shader);
         shader.bindTexture("uSurface", 4, GLES30.GL_TEXTURE_2D, gbuffer.colorTexture(0));
         shader.bindTexture("uDepth", 5, GLES30.GL_TEXTURE_2D, gbuffer.depthTexture());
-        if (!tracing) surfaceNoise.bind(shader, 9);
+        surfaceNoise.bind(shader, 9);
         Framebuffer traced = trace[traceIndex ^ 1];
         shader.bindTexture("uLight", 6, GLES30.GL_TEXTURE_2D,
                 tracing ? tracedLightTexture() : gbuffer.colorTexture(0));
         shader.bindTexture("uRtDepth", 7, GLES30.GL_TEXTURE_2D,
                 tracing ? traced.colorTexture(1) : gbuffer.colorTexture(0));
         shader.bindTexture("uReflection", 8, GLES30.GL_TEXTURE_2D,
-                tracing ? traced.colorTexture(2) : gbuffer.colorTexture(0));
+                tracing && settings.rtReflections ? traced.colorTexture(2) : gbuffer.colorTexture(0));
         shader.set("uLightTexelSize", 1f / traceWidth, 1f / traceHeight);
         shader.set("uRayTracing", tracing ? 1f : 0f);
         shader.set("uReflectionStrength", settings.rtReflections ? 1f : 0f);
@@ -743,6 +803,7 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
 
     /** Glass, decals, tracers and particles, blended over the resolved image. */
     private void renderForward() {
+        hdr.attachExternalDepth(gbuffer.depthTexture());
         hdr.bind();
         GLES30.glEnable(GLES30.GL_DEPTH_TEST);
         GLES30.glDepthMask(false);
@@ -995,6 +1056,7 @@ public final class GameRenderer implements GLSurfaceView.Renderer {
         MapEnvironment environment = match.environment();
         scene.bind(shader, 0);
         shader.setMatrix("uInverseViewProjection", inverseViewProjection);
+        shader.setMatrix("uView", view);
         shader.set("uCameraPosition", match.cameraPosition.x, match.cameraPosition.y,
                 match.cameraPosition.z);
         shader.set("uDepthPlanes", NEAR_PLANE, settings.viewDistance);

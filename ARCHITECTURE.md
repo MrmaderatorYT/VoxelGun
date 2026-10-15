@@ -338,6 +338,30 @@ Range targets, cover, objective holds and investigation pauses are classified se
 thresholds flag individuals as well as team averages. Timing covers desktop JVM `Match.update`
 using Java voxel fallbacks, not Android rendering, audio, JNI or measured device frame rate.
 
+### Personal goals and weapon mastery
+
+The Career page (formerly Stats) combines existing career statistics with six permanent goals:
+25 kills, 20 headshot kills, five victories, three objective-mode victories, four distinct completed
+combat modes and zombie wave ten. They start when this feature is installed, never expire, and
+award cosmetic currency and XP automatically. Objective wins unlock Mint gloves, exploring modes
+unlocks the Pocket core charm, and survival unlocks Arctic paint. A draw is never a victory;
+repeated plays of one mode do not advance the distinct-mode goal, and zombie waves use the highest
+wave reached rather than a sum. Objective modes follow `GameMode.objective()`.
+
+Each weapon independently reaches Bronze/Silver/Gold at 25/100/250 career kills. The tiers award
+100/250/500 coins and 150/400/800 XP respectively; Gold also unlocks the existing Gold paint for
+all weapons. Existing per-weapon kills count, with historical tier rewards granted after the next
+combat match. Paints remain cosmetic and can still be purchased normally. Rewards do not equip
+items automatically. Range and Movement Training award no career totals, goals or mastery.
+
+`Profile.completeMatch` stages weapon totals, goal counters, one-time reward markers, currency
+and XP in one SharedPreferences editor. The existing profile backup includes those keys without
+a format change. Goal IDs and weapon enum names are stable storage keys. Results show bonus
+rewards, completed goals, mastery tiers and the nearest unfinished goal; the overlay scrolls so
+buttons remain reachable after multiple unlocks. All new UI text has English and Ukrainian
+resources. `CareerProgressionTest` checks persistence, historical mastery, reward uniqueness,
+practice exclusion, draws, distinct modes, wave maxima, sparse tallies and profile reset.
+
 ### Weapons are taken in the round, never in the menu
 
 There is no loadout screen. Every gun in the game is handed out by the buy menu inside a match, and

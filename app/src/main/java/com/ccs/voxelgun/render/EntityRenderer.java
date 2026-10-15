@@ -13,6 +13,7 @@ import com.ccs.voxelgun.voxel.Materials;
 import com.ccs.voxelgun.voxel.MeshData;
 import com.ccs.voxelgun.voxel.VoxelMesher;
 import com.ccs.voxelgun.weapon.WeaponType;
+import com.ccs.voxelgun.weapon.WeaponClass;
 
 import java.util.HashMap;
 import java.util.List;
@@ -26,7 +27,6 @@ import java.util.Map;
  */
 public final class EntityRenderer {
     private static final float SCALE = Models.CHARACTER_SCALE;
-    private static final float WEAPON_SCALE = Models.WEAPON_SCALE;
     /** Longest weapon switch in the match loop; the swap animation is scaled to it. */
     private static final float SWITCH_SECONDS = 0.32f;
     private static final float LEG_HEIGHT = 12f * SCALE;
@@ -41,7 +41,6 @@ public final class EntityRenderer {
     private final Map<String, Rig> rigs = new HashMap<>();
     private final Map<String, WeaponMesh> weapons = new HashMap<>();
     private final Map<String, WeaponMesh> cosmeticWeapons = new HashMap<>();
-    private final Map<Integer, WeaponMesh> gloves = new HashMap<>();
     private final Map<Integer, WeaponMesh> charms = new HashMap<>();
     private final WeaponMesh[] objectiveRings = new WeaponMesh[3];
     private WeaponMesh objectiveCore;
@@ -61,6 +60,9 @@ public final class EntityRenderer {
      * velocity, and the temporal passes smear the gun you just put away over the one you drew.
      */
     private final float[] previousViewLocal = Mat4.create();
+    private final float[] viewRig = Mat4.create();
+    private final float[] previousCharm = Mat4.create();
+    private int previousCharmId = -1, previousWeaponSkin = -1;
     private boolean previousViewValid;
     private String previousViewModelKey;
 
@@ -89,10 +91,6 @@ public final class EntityRenderer {
         }
         objectiveCore = new WeaponMesh(new VoxelModel(5, 5, 5).box(0, 0, 0, 4, 4, 4,
                 Materials.SUNNY).pivot(2.5f, 2.5f, 2.5f));
-        for (int i = 0; i < 3; i++) {
-            int material = i == 0 ? Materials.CLOTH_DARK : Cosmetics.material(i);
-            gloves.put(i, new WeaponMesh(new VoxelModel(4, 5, 5).box(0, 0, 0, 3, 4, 4, material).pivot(2, 4, 2)));
-        }
         for (int i = 1; i <= 2; i++) {
             VoxelModel charm = new VoxelModel(3, 7, 3).box(1, 3, 1, 1, 6, 1, Materials.GUN_METAL)
                     .box(0, 0, 0, 2, 2, 2, i == 1 ? Materials.MINT : Materials.SUNNY).pivot(1, 6, 1);
@@ -190,7 +188,7 @@ public final class EntityRenderer {
             Mat4.identity(local);
             Mat4.translate(local, 0.24f, handY, handZ);
             Mat4.rotate(local, (float) Math.toDegrees(aimPitch), 1f, 0f, 0f);
-            applyPivot(local, mesh.model, WEAPON_SCALE);
+            applyPivot(local, mesh.model, Models.weaponScale(mesh.model));
             submit(shader, entity, previousEntity);
             mesh.mesh.draw();
         }
@@ -258,7 +256,7 @@ public final class EntityRenderer {
             } else {
                 Mat4.rotate(local, (float) Math.toDegrees(projectile.spin), 0.4f, 1f, 0.2f);
             }
-            applyPivot(local, mesh.model, projectile.rocket ? 0.05f : 0.045f);
+            applyPivot(local, mesh.model, (projectile.rocket ? 0.05f : 0.045f) * mesh.model.voxelSize);
             shader.setMatrix("uModel", local);
             shader.setMatrix("uPreviousModel", local);
             mesh.mesh.draw();
@@ -304,75 +302,77 @@ public final class EntityRenderer {
         Mat4.rotate(camera, Mat4.yawDegrees(yaw), 0f, 1f, 0f);
         Mat4.rotate(camera, (float) Math.toDegrees(pitch), 1f, 0f, 0f);
 
-        boolean melee = player.weaponType().melee();
-        float hipX = melee ? 0.24f : 0.17f;
-        float hipY = melee ? -0.22f : -0.17f;
-        // The blade is broadside and a little farther from the eye. Pointing it straight down
-        // -Z made the player look along its one-voxel edge, which read as if no knife was drawn.
-        float hipZ = melee ? -0.50f : Math.min(-0.50f, -mesh.rearExtent - 0.26f);
-        float adsX = 0.0f;
-        // Drop the model by exactly the height of its own sight line, so the sights land on the
-        // camera axis whatever the gun is shaped like.
-        float adsY = -mesh.sightLift;
-        // Aiming narrows the FOV by the weapon's zoom, which magnifies the view model just as
-        // much as the world. Only the Y offset keeps the sights on the camera axis, so pushing
-        // the model back by the same factor cancels the magnification without breaking the
-        // alignment: the gun stays the size it is at the hip instead of swallowing the screen.
-        float adsZ = -0.34f * Math.max(1f, player.weaponType().zoom());
-
-        // Crouching pulls the weapon down and closer to the chest.
+        WeaponType type = player.weaponType();
+        boolean melee = type.melee();
+        boolean grenade = type.grenade();
+        boolean pistol = type.weaponClass() == WeaponClass.PISTOL;
+        float aim = MathUtil.clamp(adsBlend, 0f, 1f);
+        float sizeBlend = MathUtil.lerp(1f, .92f, aim);
+        // Move the stock away from the eye and show the receiver's side. A rear-on close-up
+        // magnified a few stock voxels until they hid the entire detailed part of the weapon.
+        float hipX = melee ? .24f : pistol || grenade ? .23f : .29f;
+        float hipY = melee ? -.22f : pistol || grenade ? -.20f : -.24f;
+        float hipZ = melee ? -.58f : Math.min(-.62f, -mesh.rearExtent - .40f);
+        float adsY = -mesh.sightLift * sizeBlend;
+        float adsZ = -Math.max(.46f, mesh.rearExtent + .22f) * Math.max(1f, type.zoom());
         float crouch = MathUtil.clamp(player.crouchBlend, 0f, 1f);
-        // A swap drops the model out of frame and raises the new one, so the two are never on
-        // screen together and the history has an obvious motion to follow.
         float swap = MathUtil.clamp(player.switchTimer / SWITCH_SECONDS, 0f, 1f);
-        float swapDrop = swap * swap * 0.55f;
-        float offsetX = MathUtil.lerp(hipX, adsX, adsBlend) + swayX * 0.05f - 0.015f * crouch;
-        float offsetY = MathUtil.lerp(hipY, adsY, adsBlend) + swayY * 0.05f + bob - 0.045f * crouch
-                - swapDrop;
-        float offsetZ = MathUtil.lerp(hipZ, adsZ, adsBlend) + recoil * 0.06f + 0.035f * crouch;
+        float reload = player.weapon().reloading()
+                ? (float) Math.sin(Math.PI * player.weapon().reloadProgress()) : 0f;
+        float offsetX = MathUtil.lerp(hipX, 0f, aim) + swayX * .05f - .015f * crouch;
+        float offsetY = MathUtil.lerp(hipY, adsY, aim) + swayY * .05f + bob
+                - .045f * crouch - swap * swap * .55f - reload * .045f;
+        float offsetZ = MathUtil.lerp(hipZ, adsZ, aim) + recoil * .06f + .035f * crouch;
 
-        Mat4.identity(local);
-        Mat4.translate(local, offsetX, offsetY, offsetZ);
-        Mat4.rotate(local, Mat4.yawDegrees(swayX * 0.35f), 0f, 1f, 0f);
-        Mat4.rotate(local, (float) Math.toDegrees(swayY * 0.35f + recoil * 0.22f), 1f, 0f, 0f);
+        Mat4.identity(viewRig);
+        Mat4.translate(viewRig, offsetX, offsetY, offsetZ);
+        Mat4.rotate(viewRig, (melee ? 36f : grenade ? 15f : 18f) * (1f - aim)
+                + Mat4.yawDegrees(swayX * .35f) + reload * 12f, 0f, 1f, 0f);
+        Mat4.rotate(viewRig, (melee ? 20f : 0f) + (float) Math.toDegrees(swayY * .35f
+                + recoil * .22f - swap * 1.05f) - reload * 12f, 1f, 0f, 0f);
+        Mat4.rotate(viewRig, (melee ? -8f : -3f) * (1f - aim) - reload * 22f, 0f, 0f, 1f);
         if (melee) {
-            // Standoff-style ready pose: handle at the lower-right, blade crossing up and in.
-            Mat4.rotate(local, 36f, 0f, 1f, 0f);
-            Mat4.rotate(local, 20f, 1f, 0f, 0f);
-            Mat4.rotate(local, -8f, 0f, 0f, 1f);
-            float swingAngle = player.meleeSwing * 1.8f;
-            Mat4.rotate(local, (float) Math.toDegrees(-swingAngle), 1f, 0.35f, 0f);
+            Mat4.rotate(viewRig, (float) Math.toDegrees(-player.meleeSwing * 1.8f), 1f, .35f, 0f);
         }
-        Mat4.rotate(local, (float) Math.toDegrees(-swap * 1.05f), 1f, 0f, 0f);
-        applyPivot(local, mesh.model, mesh.firstPersonScale
-                * MathUtil.lerp(1.0f, 0.92f, adsBlend));
         if (!previousCameraValid) {
             Mat4.copy(previousCamera, camera);
             previousCameraValid = true;
         }
-        // A different model means the previous frame holds nothing this geometry can reproject
-        // onto; reusing its transform is exactly what produced the double weapon.
-        if (!previousViewValid || !modelKey.equals(previousViewModelKey)) {
-            Mat4.copy(previousViewLocal, local);
-            previousViewValid = true;
-            previousViewModelKey = modelKey;
+        int weaponSkin = player.weaponSkin();
+        boolean reset = !previousViewValid || !modelKey.equals(previousViewModelKey)
+                || weaponSkin != previousWeaponSkin;
+        Mat4.copy(local, viewRig);
+        applyPivot(local, mesh.model, mesh.firstPersonScale * sizeBlend);
+        drawViewPart(shader, mesh, previousViewLocal, reset);
+
+        WeaponMesh charm = charms.get(player.charm);
+        if (charm != null && !grenade && !melee) {
+            drawAttachment(shader, charm, .075f, .025f, -.10f,
+                    (float) Math.sin(player.walkCycle) * .22f + recoil * .3f, 0f, .016f,
+                    previousCharm, reset || player.charm != previousCharmId);
         }
+        // Keep the old camera until every attached part has written its motion vector.
+        Mat4.copy(previousCamera, camera);
+        previousViewValid = true;
+        previousViewModelKey = modelKey;
+        previousWeaponSkin = weaponSkin;
+        previousCharmId = player.charm;
+    }
+
+    /** A hidden rig has no immediately preceding geometry to reproject after it returns. */
+    public void invalidateViewHistory() {
+        previousCameraValid = false;
+        previousViewValid = false;
+    }
+
+    private void drawViewPart(Shader shader, WeaponMesh mesh, float[] previous, boolean reset) {
+        if (reset) Mat4.copy(previous, local);
         Mat4.multiply(world, camera, local);
-        Mat4.multiply(previousWorld, previousCamera, previousViewLocal);
+        Mat4.multiply(previousWorld, previousCamera, previous);
         shader.setMatrix("uModel", world);
         shader.setMatrix("uPreviousModel", previousWorld);
         mesh.mesh.draw();
-        Mat4.copy(previousCamera, camera);
-        Mat4.copy(previousViewLocal, local);
-        previousViewModelKey = modelKey;
-        WeaponMesh glove = gloves.get(Math.max(0, Math.min(2, player.gloveColor)));
-        drawAttachment(shader, glove, offsetX + 0.015f, offsetY - 0.045f,
-                offsetZ + 0.055f, 0f, 0.03f);
-        WeaponMesh charm = charms.get(player.charm);
-        if (charm != null && !player.weaponType().grenade() && !melee) {
-            drawAttachment(shader, charm, offsetX + 0.095f, offsetY + 0.025f,
-                    offsetZ - 0.10f, (float) Math.sin(player.walkCycle) * 0.22f + recoil * 0.3f, 0.022f);
-        }
+        Mat4.copy(previous, local);
     }
 
     /** Returns one cached mesh for the exact geometry/finish pair, for both hands and world rigs. */
@@ -392,22 +392,21 @@ public final class EntityRenderer {
     }
 
     private void drawAttachment(Shader shader, WeaponMesh mesh, float x, float y, float z,
-                                float roll, float scale) {
-        Mat4.identity(local);
+                                float roll, float pitchDegrees, float scale, float[] previous, boolean reset) {
+        Mat4.copy(local, viewRig);
         Mat4.translate(local, x, y, z);
         Mat4.rotate(local, (float) Math.toDegrees(roll), 0f, 0f, 1f);
+        Mat4.rotate(local, pitchDegrees, 1f, 0f, 0f);
         applyPivot(local, mesh.model, scale);
-        submit(shader, camera, previousCamera);
-        mesh.mesh.draw();
+        drawViewPart(shader, mesh, previous, reset);
     }
 
     public void release() {
         for (WeaponMesh mesh : objectiveRings) if (mesh != null) mesh.mesh.release();
         if (objectiveCore != null) { objectiveCore.mesh.release(); objectiveCore = null; }
         for (WeaponMesh mesh : cosmeticWeapons.values()) mesh.mesh.release();
-        for (WeaponMesh mesh : gloves.values()) mesh.mesh.release();
         for (WeaponMesh mesh : charms.values()) mesh.mesh.release();
-        cosmeticWeapons.clear(); gloves.clear(); charms.clear();
+        cosmeticWeapons.clear(); charms.clear();
         for (Rig rig : rigs.values()) {
             rig.release();
         }
@@ -453,7 +452,7 @@ public final class EntityRenderer {
             this.mesh = new GpuMesh(data);
             this.firstPersonScale = Models.firstPersonScale(model);
             this.sightLift = Models.sightLift(model) * firstPersonScale;
-            this.rearExtent = Math.max(0f, model.sizeZ - 1f - model.pivotZ)
+            this.rearExtent = Math.max(0f, model.sizeZ - model.pivotZ)
                     * firstPersonScale;
         }
 

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="career_heading">Personal goals</string>
+    <string name="career_hint">Permanent goals. Rewards arrive automatically after combat matches. Range and movement practice do not count.</string>
+    <string name="goal_kills">First victories · get 25 kills</string>
+    <string name="goal_headshots">Sharpshooter · land 20 headshot kills</string>
+    <string name="goal_wins">Winner · win 5 matches</string>
+    <string name="goal_objectives">Team player · win 3 objective matches</string>
+    <string name="goal_modes">Explorer · finish 4 different combat modes</string>
+    <string name="goal_wave">Survivor · reach zombie wave 10</string>
+    <string name="career_progress">%1$d / %2$d · +%3$d ¢ · +%4$d XP</string>
+    <string name="career_completed">Completed · reward received</string>
+    <string name="career_cosmetic">%1$s · unlock: %2$s</string>
+    <string name="mastery_heading">Weapon mastery</string>
+    <string name="mastery_hint">Every weapon: Bronze at 25 kills (+100 ¢ / 150 XP), Silver at 100 (+250 ¢ / 400 XP), Gold at 250 (+500 ¢ / 800 XP and Gold paint). Earlier combat stats count; their rewards arrive after the next combat match. Paint unlocks for every weapon.</string>
+    <string name="mastery_bronze">Bronze</string>
+    <string name="mastery_silver">Silver</string>
+    <string name="mastery_gold">Gold</string>
+    <string name="mastery_unranked">Unranked</string>
+    <string name="mastery_title">%1$s · %2$s</string>
+    <string name="mastery_progress">%1$d / %2$d kills toward %3$s</string>
+    <string name="mastery_complete">%1$d kills · all tiers complete</string>
+    <string name="mastery_award">%1$s · mastery %2$d/3</string>
+    <string name="career_result_bonus">Goals and mastery: +%1$d ¢ · +%2$d XP</string>
+    <string name="career_result_next">Next goal: %1$s · %2$d / %3$d</string>
+    <string name="career_practice">Practice session · career rewards are earned in combat matches</string>
+    <string name="career_reward_mint">Mint gloves</string>
+    <string name="career_reward_core">Pocket core charm</string>
+    <string name="career_reward_arctic">Arctic paint</string>
+    <string name="career_reward_gold">Gold paint</string>
+</resources>

@@ -18,9 +18,9 @@ layout(location = 1) out vec2 outVelocity;
 void main() {
     vec3 normal = normalize(vNormal);
     // Values below the world AO range are tags consumed by the composite pass. Characters use
-    // 0.025/0.050 for their team outline; the first-person rig uses 0.100 so it can receive a
-    // small camera-side fill light and stay readable in pitch-black rooms.
-    float ao = uViewModel > 0.5 ? 0.100
+    // 0.025/0.050 for their team outline. Reserve 0.085..0.115 for the first-person rig,
+    // retaining its corner AO so small rails, grip grooves and panels remain legible.
+    float ao = uViewModel > 0.5 ? 0.085 + 0.030 * clamp(vOcclusion, 0.15, 1.0)
             : uCharacterTeam > 0.5 ? uCharacterTeam * 0.025
             : clamp(vOcclusion, 0.15, 1.0);
     outSurface = vec4(encodeNormal(normal), clamp(vMaterial / 255.0, 0.0, 1.0), ao);

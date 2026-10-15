@@ -55,8 +55,12 @@ bool traceVoxels(vec3 origin, vec3 direction, float maxDistance, int maxSteps,
         return false;
     }
 
-    vec3 lastAxis = -sign(safeDir);
-    int axisIndex = 0;
+    // The entry face and every skipped box use an axis normal, just like a single DDA step.
+    vec3 entry = min(-origin * invDir, (uVolumeSize - origin) * invDir);
+    int axisIndex = entry.x >= entry.y && entry.x >= entry.z ? 0 : entry.y >= entry.z ? 1 : 2;
+    vec3 lastAxis = vec3(axisIndex == 0 ? -sign(safeDir.x) : 0.0,
+                        axisIndex == 1 ? -sign(safeDir.y) : 0.0,
+                        axisIndex == 2 ? -sign(safeDir.z) : 0.0);
 
     for (int i = 0; i < maxSteps; i++) {
         if (t > limit) {
@@ -76,6 +80,11 @@ bool traceVoxels(vec3 origin, vec3 direction, float maxDistance, int maxSteps,
             vec3 planes = mix(boxMin, boxMax, positiveStep);
             vec3 distances = (planes - origin) * invDir;
             float jump = min(min(distances.x, distances.y), distances.z);
+            axisIndex = distances.x <= distances.y && distances.x <= distances.z ? 0
+                    : distances.y <= distances.z ? 1 : 2;
+            lastAxis = vec3(axisIndex == 0 ? -sign(safeDir.x) : 0.0,
+                            axisIndex == 1 ? -sign(safeDir.y) : 0.0,
+                            axisIndex == 2 ? -sign(safeDir.z) : 0.0);
             t = max(t + 1e-3, jump + 1e-3);
             continue;
         }

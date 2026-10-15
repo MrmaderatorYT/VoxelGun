@@ -22,6 +22,7 @@ uniform sampler2D uSurface;
 uniform sampler2D uDepth;
 uniform sampler2D uVelocity;
 uniform sampler2D uHistoryLight;
+uniform sampler2D uHistoryIndirect;
 uniform sampler2D uHistoryDepth;
 #ifdef REFLECTIONS
 uniform sampler2D uHistoryReflection;
@@ -29,6 +30,7 @@ uniform sampler2D uHistoryReflection;
 
 uniform uint uFrameIndex;
 uniform int uGiSamples;
+uniform int uLocalLighting;
 uniform int uShadowSteps;
 uniform int uGiSteps;
 uniform float uGiRange;
@@ -57,21 +59,27 @@ vec3 shadeHit(TraceHit hit, inout uint seed, int shadowSteps) {
 }
 
 void main() {
-    float depth = texture(uDepth, vUv).r;
+    // The tracer can run at any fraction of the G-buffer resolution. A nearest depth value
+    // belongs to its source pixel center, not the trace pixel's UV. Mixing the two places
+    // origins inside walls and creates false shadow/GI hits, especially at grazing angles.
+    ivec2 sourceSize = textureSize(uDepth, 0);
+    ivec2 sourcePixel = clamp(ivec2(vUv * vec2(sourceSize)), ivec2(0), sourceSize - 1);
+    vec2 sourceUv = (vec2(sourcePixel) + 0.5) / vec2(sourceSize);
+    float depth = texelFetch(uDepth, sourcePixel, 0).r;
     if (depth >= 0.99999) {
         outLight = vec4(0.0, 0.0, 0.0, 1.0);
-        outDepth = vec4(1.0e6, 0.0, 0.0, 1.0);
+        outDepth = vec4(60000.0, 0.0, 0.0, 1.0);
 #ifdef REFLECTIONS
         outReflection = vec4(0.0);
 #endif
         return;
     }
 
-    vec4 surface = texture(uSurface, vUv);
+    vec4 surface = texelFetch(uSurface, sourcePixel, 0);
     vec3 normal = decodeNormal(surface.rg);
     uint materialId = uint(surface.b * 255.0 + 0.5);
     Material material = readMaterial(materialId);
-    vec3 world = worldFromDepth(vUv, depth);
+    vec3 world = worldFromDepth(sourceUv, depth);
     vec3 origin = world + normal * 0.035;
 
     uint seed = hashUint(uint(gl_FragCoord.x) * 1973u + uint(gl_FragCoord.y) * 9277u
@@ -82,12 +90,13 @@ void main() {
     float ndl = dot(normal, sunDir);
     float sunVisibility = 0.0;
     if (ndl > 0.0) {
-        sunVisibility = traceShadow(origin, sunDir, 260.0, uShadowSteps) ? 0.0 : 1.0;
+        sunVisibility = uShadowSteps > 0 && traceShadow(origin, sunDir, 260.0, uShadowSteps) ? 0.0 : 1.0;
     }
 
     // Direct light from the emissive blocks. This is irradiance, so the composite multiplies it
     // by the albedo along with the bounce term.
-    vec3 indirect = sampleLights(origin, normal, seed, max(uShadowSteps, 32));
+    vec3 indirect = uLocalLighting != 0
+            ? sampleLights(origin, normal, seed, max(uShadowSteps, 32)) : vec3(0.0);
 
     // Indirect diffuse.
     vec3 bounce = vec3(0.0);
@@ -110,6 +119,12 @@ void main() {
         indirect += skyColor(normal) * 0.6;
     }
 
+    // One-sample mobile GI must not accumulate rare, extremely bright RIS light samples.
+    // Bound indirect irradiance before history/filtering; direct sun and visible emissive
+    // surfaces retain their full range in the composite. Scale uniformly to preserve hue.
+    float indirectEnergy = dot(indirect, vec3(0.2126, 0.7152, 0.0722));
+    float indirectLimit = max(1.0, uSkyIntensity * 2.0 + uSunIntensity * 0.25);
+    indirect *= min(1.0, indirectLimit / max(indirectEnergy, 1e-4));
     vec4 current = vec4(indirect, sunVisibility);
 
 #ifdef REFLECTIONS
@@ -133,13 +148,18 @@ void main() {
 
     // Temporal reprojection along the motion vector, so moving bodies stop smearing.
     float linear = linearizeDepth(depth);
-    vec2 velocity = texture(uVelocity, vUv).rg;
+    vec2 velocity = texelFetch(uVelocity, sourcePixel, 0).rg;
     vec2 previousUv = vUv - velocity;
-    if (all(greaterThanEqual(previousUv, vec2(0.0)))
+    if (uHistoryBlend > 0.0 && all(greaterThanEqual(previousUv, vec2(0.0)))
             && all(lessThanEqual(previousUv, vec2(1.0)))) {
         float previousLinear = texture(uHistoryDepth, previousUv).r;
         if (abs(previousLinear - linear) < max(0.2, linear * 0.05)) {
-            current = mix(current, texture(uHistoryLight, previousUv), uHistoryBlend);
+            vec4 historyLight = texture(uHistoryLight, previousUv);
+            // Reuse the previous edge-aware diffuse estimate, rather than restarting from
+            // noisy per-pixel history every frame. Keep raw shadow history so repeated
+            // filtering cannot gradually broaden silhouettes and contact shadows.
+            historyLight.rgb = texture(uHistoryIndirect, previousUv).rgb;
+            current = mix(current, historyLight, uHistoryBlend);
 #ifdef REFLECTIONS
             if (reflection.a > 0.0) {
                 vec4 history = texture(uHistoryReflection, previousUv);

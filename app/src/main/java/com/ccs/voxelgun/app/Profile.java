@@ -34,8 +34,11 @@ public final class Profile {
     private String name;
 
     public Profile(Context context) {
-        preferences = context.getApplicationContext()
-                .getSharedPreferences(FILE, Context.MODE_PRIVATE);
+        this(context.getApplicationContext().getSharedPreferences(FILE, Context.MODE_PRIVATE));
+    }
+
+    Profile(SharedPreferences preferences) {
+        this.preferences = preferences;
         load();
     }
 
@@ -242,6 +245,46 @@ public final class Profile {
             preferences.getInt(key + "kills", 0),
             preferences.getInt(key + "hs", 0)
         };
+    }
+
+    /** Completes a combat match with career totals and rewards in one preference transaction. */
+    public CareerProgression.Update completeMatch(com.ccs.voxelgun.game.MatchResult result) {
+        if (!CareerProgression.eligible(result)) {
+            return new CareerProgression.Update(0, 0, java.util.Collections.emptyList(), 0);
+        }
+        int before = level();
+        SharedPreferences.Editor editor = preferences.edit();
+        CareerProgression.Update update = CareerProgression.advance(preferences, editor, result);
+        for (com.ccs.voxelgun.weapon.WeaponType type : com.ccs.voxelgun.weapon.WeaponType.values()) {
+            String key = "wpn_" + type.name() + "_";
+            int i = type.ordinal();
+            editor.putInt(key + "shots", preferences.getInt(key + "shots", 0)
+                    + CareerProgression.tally(result.weaponShots, i));
+            editor.putInt(key + "hits", preferences.getInt(key + "hits", 0)
+                    + CareerProgression.tally(result.weaponHits, i));
+            editor.putInt(key + "kills", preferences.getInt(key + "kills", 0)
+                    + CareerProgression.tally(result.weaponKills, i));
+            editor.putInt(key + "hs", preferences.getInt(key + "hs", 0)
+                    + CareerProgression.tally(result.weaponHeadshots, i));
+        }
+        coins += Math.max(0, result.coinsEarned) + update.coins();
+        experience += Math.max(0, result.experienceEarned) + update.xp();
+        kills += Math.max(0, result.playerKills);
+        deaths += Math.max(0, result.playerDeaths);
+        headshots += Math.max(0, result.headshots);
+        matches++;
+        if (result.victory && !result.draw) wins++;
+        playtimeSeconds += (long) Math.max(0, result.durationSeconds);
+        editor.putInt(KEY_COINS, coins).putInt(KEY_XP, experience)
+                .putInt(KEY_KILLS, kills).putInt(KEY_DEATHS, deaths)
+                .putInt(KEY_HEADSHOTS, headshots).putInt(KEY_MATCHES, matches)
+                .putInt(KEY_WINS, wins).putLong(KEY_PLAYTIME, playtimeSeconds).apply();
+        recordBadge(result);
+        return new CareerProgression.Update(update.coins(), update.xp(), update.awards(), level() - before);
+    }
+
+    public int goalProgress(CareerProgression.Goal goal) {
+        return CareerProgression.progress(preferences, goal);
     }
 
     public void reset() {

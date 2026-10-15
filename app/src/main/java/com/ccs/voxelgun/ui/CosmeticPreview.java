@@ -69,7 +69,7 @@ public final class CosmeticPreview {
                 return gun;
             case GLOVES:
                 int cloth = value == 0 ? Materials.CLOTH_DARK : Cosmetics.material(value);
-                return new VoxelModel(4, 5, 5).box(0, 0, 0, 3, 4, 4, cloth);
+                return Models.glove(cloth);
             case CHARM:
                 if (value == 0) {
                     return null;

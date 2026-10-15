@@ -18,6 +18,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.ccs.voxelgun.R;
 import com.ccs.voxelgun.app.Cosmetics;
+import com.ccs.voxelgun.app.CareerProgression;
 import com.ccs.voxelgun.app.GameSettings;
 import com.ccs.voxelgun.app.HudLayout;
 import com.ccs.voxelgun.app.KeyBindings;
@@ -833,7 +834,7 @@ public final class MenuActivity extends AppCompatActivity {
                 qualityGroup.check(button.getId());
             }
         }
-        qualityHint.setText(settings.quality.description());
+        qualityHint.setText(graphicsDescription(this, settings.quality));
 
         MaterialSwitch rtShadows = findViewById(R.id.switch_rt_shadows);
         MaterialSwitch rtGi = findViewById(R.id.switch_rt_gi);
@@ -846,6 +847,25 @@ public final class MenuActivity extends AppCompatActivity {
         TextView renderScaleLabel = findViewById(R.id.label_render_scale);
         TextView traceScaleLabel = findViewById(R.id.label_trace_scale);
 
+        Runnable updateGraphicsState = () -> {
+            boolean tracing = settings.rtShadows || settings.rtGlobalIllumination || settings.rtReflections;
+            denoiser.setEnabled(tracing);
+            traceScale.setEnabled(tracing);
+            traceScaleLabel.setAlpha(tracing ? 1f : .5f);
+            RenderSettings defaults = new RenderSettings();
+            defaults.applyPreset(settings.quality);
+            boolean custom = settings.rtShadows != defaults.rtShadows
+                    || settings.rtGlobalIllumination != defaults.rtGlobalIllumination
+                    || settings.rtReflections != defaults.rtReflections
+                    || settings.denoiser != defaults.denoiser
+                    || settings.temporalAntiAliasing != defaults.temporalAntiAliasing
+                    || settings.bloom != defaults.bloom
+                    || Math.abs(settings.renderScale - defaults.renderScale) > .001f
+                    || Math.abs(settings.traceScale - defaults.traceScale) > .001f;
+            qualityHint.setText(custom ? getString(R.string.graphics_custom, settings.quality.label())
+                    : graphicsDescription(this, settings.quality));
+        };
+
         qualityGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (!isChecked) {
                 return;
@@ -855,7 +875,7 @@ public final class MenuActivity extends AppCompatActivity {
                 return;
             }
             settings.applyPreset(presets[(Integer) button.getTag()]);
-            qualityHint.setText(settings.quality.description());
+            qualityHint.setText(graphicsDescription(this, settings.quality));
             rtShadows.setChecked(settings.rtShadows);
             rtGi.setChecked(settings.rtGlobalIllumination);
             rtReflections.setChecked(settings.rtReflections);
@@ -866,7 +886,8 @@ public final class MenuActivity extends AppCompatActivity {
             traceScale.setValue(clampSlider(settings.traceScale, traceScale));
             renderScaleLabel.setText(percentLabel(R.string.settings_render_scale,
                     settings.renderScale));
-            traceScaleLabel.setText(percentLabel(0, settings.traceScale));
+            traceScaleLabel.setText(percentLabel(R.string.settings_rt_resolution, settings.traceScale));
+            updateGraphicsState.run();
             click();
         });
 
@@ -874,31 +895,37 @@ public final class MenuActivity extends AppCompatActivity {
         rtShadows.setOnCheckedChangeListener((view, checked) -> {
             settings.rtShadows = checked;
             settings.save();
+            updateGraphicsState.run();
         });
         rtGi.setChecked(settings.rtGlobalIllumination);
         rtGi.setOnCheckedChangeListener((view, checked) -> {
             settings.rtGlobalIllumination = checked;
             settings.save();
+            updateGraphicsState.run();
         });
         rtReflections.setChecked(settings.rtReflections);
         rtReflections.setOnCheckedChangeListener((view, checked) -> {
             settings.rtReflections = checked;
             settings.save();
+            updateGraphicsState.run();
         });
         denoiser.setChecked(settings.denoiser);
         denoiser.setOnCheckedChangeListener((view, checked) -> {
             settings.denoiser = checked;
             settings.save();
+            updateGraphicsState.run();
         });
         taa.setChecked(settings.temporalAntiAliasing);
         taa.setOnCheckedChangeListener((view, checked) -> {
             settings.temporalAntiAliasing = checked;
             settings.save();
+            updateGraphicsState.run();
         });
         bloom.setChecked(settings.bloom);
         bloom.setOnCheckedChangeListener((view, checked) -> {
             settings.bloom = checked;
             settings.save();
+            updateGraphicsState.run();
         });
 
         renderScale.setValue(clampSlider(settings.renderScale, renderScale));
@@ -906,16 +933,20 @@ public final class MenuActivity extends AppCompatActivity {
         renderScale.addOnChangeListener((slider, value, fromUser) -> {
             settings.renderScale = value;
             settings.save();
+            updateGraphicsState.run();
             renderScaleLabel.setText(percentLabel(R.string.settings_render_scale, value));
         });
 
         traceScale.setValue(clampSlider(settings.traceScale, traceScale));
-        traceScaleLabel.setText(percentLabel(0, settings.traceScale));
+        traceScaleLabel.setText(percentLabel(R.string.settings_rt_resolution, settings.traceScale));
         traceScale.addOnChangeListener((slider, value, fromUser) -> {
             settings.traceScale = value;
             settings.save();
-            traceScaleLabel.setText(percentLabel(0, value));
+            updateGraphicsState.run();
+            traceScaleLabel.setText(percentLabel(R.string.settings_rt_resolution, value));
         });
+
+        updateGraphicsState.run();
 
         Slider contrast = findViewById(R.id.slider_contrast);
         Slider brightness = findViewById(R.id.slider_brightness);
@@ -1486,6 +1517,7 @@ public final class MenuActivity extends AppCompatActivity {
         addStat(grid, getString(R.string.stat_experience), String.valueOf(profile.experience()), null);
         addStat(grid, getString(R.string.stat_coins), profile.coins() + " \u00A2", null);
 
+        refreshCareerGoals();
         refreshWeaponStats();
 
         ChipGroup badges = findViewById(R.id.stats_badges);
@@ -1502,6 +1534,59 @@ public final class MenuActivity extends AppCompatActivity {
             chip.setAlpha(earned ? 1f : 0.55f);
             badges.addView(chip);
         }
+    }
+
+    private void refreshCareerGoals() {
+        LinearLayout goals = findViewById(R.id.stats_goals);
+        goals.removeAllViews();
+        for (CareerProgression.Goal goal : CareerProgression.GOALS) {
+            int progress = profile.goalProgress(goal);
+            String detail = progress >= goal.target() ? getString(R.string.career_completed)
+                    : getString(R.string.career_progress, progress, goal.target(), goal.coins(), goal.xp());
+            if (goal.cosmetic() != null) {
+                detail = getString(R.string.career_cosmetic, detail,
+                        getString(CareerProgression.cosmeticName(goal.cosmetic())));
+            }
+            addCareerRow(goals, getString(goal.title()), detail, progress, goal.target());
+        }
+        LinearLayout mastery = findViewById(R.id.stats_mastery);
+        mastery.removeAllViews();
+        java.util.List<WeaponType> weapons = new java.util.ArrayList<>(java.util.Arrays.asList(WeaponType.values()));
+        weapons.sort((a, b) -> Integer.compare(profile.weaponStats(b)[2], profile.weaponStats(a)[2]));
+        for (WeaponType type : weapons) {
+            int kills = profile.weaponStats(type)[2];
+            if (kills == 0 && profile.weaponStats(type)[0] == 0) continue;
+            int tier = CareerProgression.masteryTier(kills);
+            int target = CareerProgression.masteryTarget(kills);
+            String title = getString(R.string.mastery_title, type.displayName(), masteryRank(tier));
+            String detail = tier == 3 ? getString(R.string.mastery_complete, kills)
+                    : getString(R.string.mastery_progress, kills, target, masteryRank(tier + 1));
+            addCareerRow(mastery, title, detail, Math.min(kills, target), target);
+        }
+        if (mastery.getChildCount() == 0) {
+            TextView empty = new TextView(this);
+            empty.setText(R.string.stats_weapons_empty);
+            empty.setPadding(dp(16), dp(12), dp(16), dp(12));
+            mastery.addView(empty);
+        }
+    }
+
+    private String masteryRank(int tier) {
+        return getString(switch (tier) {
+            case 1 -> R.string.mastery_bronze;
+            case 2 -> R.string.mastery_silver;
+            case 3 -> R.string.mastery_gold;
+            default -> R.string.mastery_unranked;
+        });
+    }
+
+    private void addCareerRow(LinearLayout parent, String title, String detail, int value, int max) {
+        View row = LayoutInflater.from(this).inflate(R.layout.item_career_goal, parent, false);
+        ((TextView) row.findViewById(R.id.goal_title)).setText(title);
+        ((TextView) row.findViewById(R.id.goal_detail)).setText(detail);
+        LinearProgressIndicator progress = row.findViewById(R.id.goal_progress);
+        progress.setProgress(Math.round(value * 100f / max));
+        parent.addView(row);
     }
 
     /**
@@ -1628,6 +1713,13 @@ public final class MenuActivity extends AppCompatActivity {
     }
 
     /** Same checked-state appearance in menu and pause graphics controls. */
+    static String graphicsDescription(android.content.Context context, RenderSettings.Quality quality) {
+        int id = quality == RenderSettings.Quality.LOW ? R.string.graphics_low
+                : quality == RenderSettings.Quality.MEDIUM ? R.string.graphics_medium
+                : quality == RenderSettings.Quality.HIGH ? R.string.graphics_high : R.string.graphics_ultra;
+        return context.getString(id);
+    }
+
     static void styleGraphicsButton(android.content.Context context, MaterialButton button) {
         button.setCheckable(true);
         button.setBackgroundTintList(androidx.appcompat.content.res.AppCompatResources

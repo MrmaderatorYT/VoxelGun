@@ -1,18 +1,34 @@
 package com.ccs.voxelgun.render;
 
-/** Pixel work must scale with the quality budget, not an arbitrarily large tablet panel. */
+/** Absolute pixel budgets keep work independent of phone/tablet display density. */
 public final class RenderResolution {
     public static final int LOW_BASE_PIXELS = 1280 * 800;
+    public static final int MAX_TRACE_PIXELS = 640 * 360;
     private RenderResolution() {}
+
+    public static int scenePixelBudget(RenderSettings.Quality quality) {
+        if (quality == RenderSettings.Quality.ULTRA) return 1920 * 1080;
+        if (quality == RenderSettings.Quality.HIGH) return 1600 * 900;
+        return LOW_BASE_PIXELS;
+    }
 
     public static float surfaceScale(int width, int height, RenderSettings.Quality quality,
                                      float selectedScale) {
-        float scale = Math.max(.1f, Math.min(1f, selectedScale));
-        if (quality != RenderSettings.Quality.LOW) return scale;
+        return boundedScale(width, height, selectedScale, scenePixelBudget(quality));
+    }
+
+    public static float traceScale(int width, int height, float selectedScale) {
+        // A slider value is a ceiling. Even 100% cannot turn RT into millions of rays/pixel work.
+        float selected = Float.isFinite(selectedScale)
+                ? Math.max(.25f, Math.min(1f, selectedScale)) : .35f;
         long pixels = (long) Math.max(1, width) * Math.max(1, height);
-        // At 100% Low budgets ~1MP; at 75% it uses ~576k pixels, regardless of panel density.
-        // A small panel is never enlarged. HUD/UI remain in the full-resolution overlay.
-        float base = Math.min(1f, (float) Math.sqrt((double) LOW_BASE_PIXELS / pixels));
-        return scale * base;
+        return Math.min(selected, (float) Math.sqrt((double) MAX_TRACE_PIXELS / pixels));
+    }
+
+    private static float boundedScale(int width, int height, float selectedScale, int budget) {
+        float scale = Float.isFinite(selectedScale)
+                ? Math.max(.1f, Math.min(1f, selectedScale)) : .75f;
+        long pixels = (long) Math.max(1, width) * Math.max(1, height);
+        return scale * Math.min(1f, (float) Math.sqrt((double) budget / pixels));
     }
 }

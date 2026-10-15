@@ -68,7 +68,7 @@ vec3 skyColor(vec3 direction) {
     float height = clamp(direction.y * 0.5 + 0.5, 0.0, 1.0);
     vec3 gradient = mix(uSkyHorizon, uSkyZenith, pow(height, 0.62));
     // Ground bounce keeps downward rays from going black indoors.
-    float ground = smoothstep(0.0, -0.25, direction.y);
+    float ground = (1.0 - smoothstep(-0.25, 0.0, direction.y));
     gradient = mix(gradient, uSkyHorizon * 0.32, ground);
     return gradient * uSkyIntensity;
 }

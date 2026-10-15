@@ -11,6 +11,8 @@ public final class VoxelModel {
     public final int sizeY;
     public final int sizeZ;
     public final byte[] voxels;
+    /** Physical size of one authored voxel relative to the original model grid. */
+    public float voxelSize = 1f;
     public float pivotX;
     public float pivotY;
     public float pivotZ;
@@ -70,6 +72,7 @@ public final class VoxelModel {
         clone.pivotX = pivotX;
         clone.pivotY = pivotY;
         clone.pivotZ = pivotZ;
+        clone.voxelSize = voxelSize;
         return clone;
     }
 }

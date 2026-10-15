@@ -107,6 +107,14 @@ public final class GameSettings {
         gamma = Float.isFinite(gamma) ? Math.max(.5f, Math.min(2f, gamma)) : 1f;
         showFps = preferences.getBoolean("show_fps", false);
         frameRateCap = preferences.getInt("fps_cap", 60);
+        RenderSettings validated = toRenderSettings();
+        renderScale = validated.renderScale;
+        traceScale = validated.traceScale;
+        fieldOfView = validated.fieldOfView;
+        contrast = validated.contrast;
+        brightness = validated.brightness;
+        gamma = validated.gamma;
+        frameRateCap = validated.frameRateCap;
 
         lookSensitivity = preferences.getFloat("sensitivity", 1f);
         adsSensitivity = preferences.getFloat("ads_sensitivity", 0.6f);
@@ -303,11 +311,7 @@ public final class GameSettings {
         render.showFps = showFps;
         render.frameRateCap = frameRateCap;
         render.playerHighlights = playerHighlights;
-        if (quality == RenderSettings.Quality.LOW) {
-            render.giSamples = 0;
-        } else if (!rtGlobalIllumination) {
-            render.giSamples = 0;
-        }
+        render.normalize();
         return render;
     }
 }

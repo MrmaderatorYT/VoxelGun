@@ -32,11 +32,13 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
+import com.ccs.voxelgun.BuildConfig;
 import com.ccs.voxelgun.R;
 import com.ccs.voxelgun.app.GameSettings;
 import com.ccs.voxelgun.app.HudLayout;
 import com.ccs.voxelgun.app.KeyBindings;
 import com.ccs.voxelgun.app.Profile;
+import com.ccs.voxelgun.app.CareerProgression;
 import com.ccs.voxelgun.audio.AudioEngine;
 import com.ccs.voxelgun.audio.Sfx;
 import com.ccs.voxelgun.game.BattlefieldRules;
@@ -300,7 +302,11 @@ public final class MatchActivity extends AppCompatActivity implements MatchListe
         findViewById(R.id.button_resume).setOnClickListener(v -> hidePause());
         findViewById(R.id.button_leave).setOnClickListener(v -> finish());
         findViewById(R.id.button_pause_settings).setOnClickListener(v -> showQuickSettings());
-        findViewById(R.id.button_performance_details).setOnClickListener(v -> showPerformanceDetails());
+        View performanceDetails = findViewById(R.id.button_performance_details);
+        performanceDetails.setVisibility(BuildConfig.DEBUG ? View.VISIBLE : View.GONE);
+        if (BuildConfig.DEBUG) {
+            performanceDetails.setOnClickListener(v -> showPerformanceDetails());
+        }
         MaterialButton courseRestart = findViewById(R.id.button_course_restart);
         if (config.mode == GameMode.MOVEMENT_TRAINING) {
             courseRestart.setVisibility(View.VISIBLE);
@@ -378,10 +384,23 @@ public final class MatchActivity extends AppCompatActivity implements MatchListe
      * Asks the display for the chosen rate. On a 90 or 120 Hz panel this is what actually makes
      * the higher settings reachable; the render thread's own pacing does the rest.
      */
+    private android.hardware.display.DisplayManager graphicsDisplayManager;
+    private final android.hardware.display.DisplayManager.DisplayListener graphicsDisplayListener =
+            new android.hardware.display.DisplayManager.DisplayListener() {
+                @Override public void onDisplayAdded(int id) { updateRendererRefreshRate(); }
+                @Override public void onDisplayRemoved(int id) { updateRendererRefreshRate(); }
+                @Override public void onDisplayChanged(int id) { updateRendererRefreshRate(); }
+            };
+
+    private void updateRendererRefreshRate() {
+        android.view.Display display = surface == null ? null : surface.getDisplay();
+        if (renderer != null) renderer.setDisplayRefreshRate(display == null ? 60f : display.getRefreshRate());
+    }
+
     private void applyDisplayFrameRate() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || surface == null) {
-            return;
-        }
+        if (surface == null) return;
+        updateRendererRefreshRate();
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
         android.view.Surface target = surface.getHolder().getSurface();
         if (target == null || !target.isValid()) {
             return;
@@ -508,6 +527,7 @@ public final class MatchActivity extends AppCompatActivity implements MatchListe
     }
 
     private void showPerformanceDetails() {
+        if (!BuildConfig.DEBUG) return;
         HudSnapshot state = match.snapshot();
         String[] names = {"Physics", "AI decisions / combat", "Weapons / projectiles", "Effects",
                 "Objectives", "Chunk uploads", "Render submission (CPU)"};
@@ -1083,20 +1103,13 @@ public final class MatchActivity extends AppCompatActivity implements MatchListe
             return;
         }
         resultsShown = true;
-        profile.recordBadge(result);
-        // Range practice is deliberately kept out of the career numbers: standing targets would
-        // flatter accuracy and headshot rate into meaninglessness.
-        if (result.mode != com.ccs.voxelgun.game.GameMode.RANGE) {
-            profile.applyWeaponStats(result);
-        }
+        CareerProgression.Update progression = profile.completeMatch(result);
         input.paused = true;
         input.releaseAll();
         hud.clearAim();
         releasePointer();
 
-        int levelsGained = profile.applyMatch(result.coinsEarned, result.experienceEarned,
-                result.playerKills, result.playerDeaths, result.headshots, result.victory,
-                result.durationSeconds);
+        int levelsGained = progression.levelsGained();
 
         TextView title = findViewById(R.id.results_title);
         TextView detail = findViewById(R.id.results_detail);
@@ -1122,6 +1135,31 @@ public final class MatchActivity extends AppCompatActivity implements MatchListe
         String reward = "+" + result.coinsEarned + " ¢   +" + result.experienceEarned + " XP";
         if (levelsGained > 0) {
             reward += "   LEVEL UP ×" + levelsGained;
+        }
+        if (!CareerProgression.eligible(result)) {
+            reward = getString(R.string.career_practice);
+        } else {
+            if (progression.coins() > 0 || progression.xp() > 0) {
+                reward += "\n" + getString(R.string.career_result_bonus, progression.coins(), progression.xp());
+            }
+            for (CareerProgression.Award award : progression.awards()) {
+                reward += "\n✓ " + (award.weapon() == null ? getString(award.title())
+                        : getString(award.title(), award.weapon().displayName(), award.tier()));
+                if (award.cosmetic() != null) {
+                    reward += " · " + getString(CareerProgression.cosmeticName(award.cosmetic()));
+                }
+            }
+            CareerProgression.Goal next = null;
+            for (CareerProgression.Goal goal : CareerProgression.GOALS) {
+                int progress = profile.goalProgress(goal);
+                if (progress >= goal.target()) continue;
+                if (next == null || progress / (float) goal.target()
+                        > profile.goalProgress(next) / (float) next.target()) next = goal;
+            }
+            if (next != null) {
+                reward += "\n" + getString(R.string.career_result_next, getString(next.title()),
+                        profile.goalProgress(next), next.target());
+            }
         }
         rewards.setText(reward);
 
@@ -1150,6 +1188,12 @@ public final class MatchActivity extends AppCompatActivity implements MatchListe
         super.onResume();
         if (keyboardMonitor != null) keyboardMonitor.start();
         if (renderer != null) renderer.startThermalMonitoring();
+        graphicsDisplayManager = (android.hardware.display.DisplayManager)
+                getSystemService(Context.DISPLAY_SERVICE);
+        if (graphicsDisplayManager != null) {
+            graphicsDisplayManager.registerDisplayListener(graphicsDisplayListener, handler);
+        }
+        updateRendererRefreshRate();
         goFullscreen();
         if (surfaceRunning) {
             surface.onResume();
@@ -1167,6 +1211,9 @@ public final class MatchActivity extends AppCompatActivity implements MatchListe
     @Override
     protected void onPause() {
         if (renderer != null) renderer.stopThermalMonitoring();
+        if (graphicsDisplayManager != null) {
+            graphicsDisplayManager.unregisterDisplayListener(graphicsDisplayListener);
+        }
         if (keyboardMonitor != null) keyboardMonitor.stop();
         handler.removeCallbacks(hudPump);
         releasePointer();
