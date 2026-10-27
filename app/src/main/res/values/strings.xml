@@ -17,7 +17,7 @@
     <string name="menu_difficulty">Difficulty</string>
     <string name="menu_controls">CONTROLS</string>
     <string name="menu_tagline">Offline tactical voxel combat</string>
-    <string name="menu_status">● OFFLINE // BUILD 2.0</string>
+    <string name="menu_status">● OFFLINE // BUILD 1.0.1</string>
     <string name="profile_operator">Operator profile</string>
     <string name="profile_tap_edit">Tap to edit callsign</string>
     <string name="menu_config_label">Match config</string>
