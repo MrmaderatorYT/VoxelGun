@@ -5,8 +5,8 @@
     intent is visible when someone adds a new preference file.
 -->
 <full-backup-content>
-    <include domain="sharedpref" path="voxelgun_profile.xml" />
-    <include domain="sharedpref" path="voxelgun_settings.xml" />
-    <include domain="sharedpref" path="voxelgun_hud.xml" />
-    <include domain="sharedpref" path="voxelgun_keys.xml" />
+    <include domain="sharedpref" path="voxelstrike_profile.xml" />
+    <include domain="sharedpref" path="voxelstrike_settings.xml" />
+    <include domain="sharedpref" path="voxelstrike_hud.xml" />
+    <include domain="sharedpref" path="voxelstrike_keys.xml" />
 </full-backup-content>

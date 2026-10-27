@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    style="@style/Widget.VoxelGun.Card"
+    style="@style/Widget.VoxelStrike.Card"
     android:layout_width="match_parent"
     android:layout_height="56dp"
     android:layout_marginBottom="4dp"
@@ -18,7 +18,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/selector_previous"
-            style="@style/Widget.VoxelGun.Button.SelectorArrow"
+            style="@style/Widget.VoxelStrike.Button.SelectorArrow"
             android:layout_width="56dp"
             android:layout_height="match_parent"
             android:text="@string/selector_previous_symbol" />
@@ -51,7 +51,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/selector_next"
-            style="@style/Widget.VoxelGun.Button.SelectorArrow"
+            style="@style/Widget.VoxelStrike.Button.SelectorArrow"
             android:layout_width="56dp"
             android:layout_height="match_parent"
             android:text="@string/selector_next_symbol" />

@@ -1,8 +1,8 @@
-import com.ccs.voxelgun.map.GameMap;
-import com.ccs.voxelgun.map.Maps;
-import com.ccs.voxelgun.map.scenery.Landmark;
-import com.ccs.voxelgun.voxel.Materials;
-import com.ccs.voxelgun.voxel.VoxelWorld;
+import com.ccs.voxelstrike.map.GameMap;
+import com.ccs.voxelstrike.map.Maps;
+import com.ccs.voxelstrike.map.scenery.Landmark;
+import com.ccs.voxelstrike.voxel.Materials;
+import com.ccs.voxelstrike.voxel.VoxelWorld;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;

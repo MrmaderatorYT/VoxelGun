@@ -1,7 +1,7 @@
-import com.ccs.voxelgun.map.*;
-import com.ccs.voxelgun.map.maps.MovementCourse;
-import com.ccs.voxelgun.map.scenery.DecorBox;
-import com.ccs.voxelgun.voxel.*;
+import com.ccs.voxelstrike.map.*;
+import com.ccs.voxelstrike.map.maps.MovementCourse;
+import com.ccs.voxelstrike.map.scenery.DecorBox;
+import com.ccs.voxelstrike.voxel.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;

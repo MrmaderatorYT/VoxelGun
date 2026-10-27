@@ -18,7 +18,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/settings_back"
-            style="@style/Widget.VoxelGun.Button.Back"
+            style="@style/Widget.VoxelStrike.Button.Back"
             android:layout_width="112dp"
             android:layout_height="48dp"
             android:gravity="start|center_vertical"
@@ -33,7 +33,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="@string/menu_settings"
-            android:textAppearance="@style/TextAppearance.VoxelGun.ScreenTitle" />
+            android:textAppearance="@style/TextAppearance.VoxelStrike.ScreenTitle" />
 
         <Space
             android:layout_width="96dp"
@@ -200,7 +200,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_picture_preset"
-                    style="@style/Widget.VoxelGun.Button.Tonal"
+                    style="@style/Widget.VoxelStrike.Button.Tonal"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="4dp"
@@ -275,7 +275,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_keys"
-                    style="@style/Widget.VoxelGun.Button.Tonal"
+                    style="@style/Widget.VoxelStrike.Button.Tonal"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
@@ -283,7 +283,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_hud"
-                    style="@style/Widget.VoxelGun.Button.Tonal"
+                    style="@style/Widget.VoxelStrike.Button.Tonal"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/settings_hud" />

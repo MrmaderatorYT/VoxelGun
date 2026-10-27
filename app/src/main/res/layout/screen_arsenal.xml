@@ -18,7 +18,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/arsenal_back"
-            style="@style/Widget.VoxelGun.Button.Back"
+            style="@style/Widget.VoxelStrike.Button.Back"
             android:layout_width="112dp"
             android:layout_height="48dp"
             android:gravity="start|center_vertical"
@@ -33,7 +33,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="@string/menu_skins"
-            android:textAppearance="@style/TextAppearance.VoxelGun.ScreenTitle" />
+            android:textAppearance="@style/TextAppearance.VoxelStrike.ScreenTitle" />
 
         <TextView
             android:id="@+id/arsenal_coins"
@@ -69,7 +69,7 @@
 
         <!-- The inspector: the selected item at full size, turned by dragging across the card. -->
         <com.google.android.material.card.MaterialCardView
-            style="@style/Widget.VoxelGun.Card"
+            style="@style/Widget.VoxelStrike.Card"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="0.58"
@@ -102,7 +102,7 @@
                     android:textAppearance="?attr/textAppearanceBodySmall"
                     android:textColor="?attr/colorOnSurfaceVariant" />
 
-                <com.ccs.voxelgun.ui.CosmeticTurntable
+                <com.ccs.voxelstrike.ui.CosmeticTurntable
                     android:id="@+id/inspect_turntable"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"

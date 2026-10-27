@@ -106,7 +106,7 @@ bool traverse(const Volume& vol, float ox, float oy, float oz, float dx, float d
 
 extern "C" {
 
-JNIEXPORT jlong JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_createVolume(JNIEnv*, jclass,
+JNIEXPORT jlong JNICALL Java_com_ccs_voxelstrike_voxel_NativeBridge_createVolume(JNIEnv*, jclass,
                                                                              jint sx, jint sy,
                                                                              jint sz) {
     if (sx <= 0 || sy <= 0 || sz <= 0) return 0;
@@ -122,7 +122,7 @@ JNIEXPORT jlong JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_createVolume(JN
     return reinterpret_cast<jlong>(vol);
 }
 
-JNIEXPORT void JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_destroyVolume(JNIEnv*, jclass,
+JNIEXPORT void JNICALL Java_com_ccs_voxelstrike_voxel_NativeBridge_destroyVolume(JNIEnv*, jclass,
                                                                              jlong handle) {
     Volume* vol = handleOf(handle);
     if (vol == nullptr) return;
@@ -130,7 +130,7 @@ JNIEXPORT void JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_destroyVolume(JN
     delete vol;
 }
 
-JNIEXPORT void JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_uploadVolume(JNIEnv* env, jclass,
+JNIEXPORT void JNICALL Java_com_ccs_voxelstrike_voxel_NativeBridge_uploadVolume(JNIEnv* env, jclass,
                                                                             jlong handle,
                                                                             jbyteArray data) {
     Volume* vol = handleOf(handle);
@@ -143,7 +143,7 @@ JNIEXPORT void JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_uploadVolume(JNI
     env->ReleasePrimitiveArrayCritical(data, raw, JNI_ABORT);
 }
 
-JNIEXPORT void JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_setVoxel(JNIEnv*, jclass,
+JNIEXPORT void JNICALL Java_com_ccs_voxelstrike_voxel_NativeBridge_setVoxel(JNIEnv*, jclass,
                                                                         jlong handle, jint x,
                                                                         jint y, jint z,
                                                                         jint material) {
@@ -152,7 +152,7 @@ JNIEXPORT void JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_setVoxel(JNIEnv*
 }
 
 /// out = { t, hitX, hitY, hitZ, normalX, normalY, normalZ, material, blockX, blockY, blockZ }
-JNIEXPORT jboolean JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_raycast(
+JNIEXPORT jboolean JNICALL Java_com_ccs_voxelstrike_voxel_NativeBridge_raycast(
         JNIEnv* env, jclass, jlong handle, jfloat ox, jfloat oy, jfloat oz, jfloat dx, jfloat dy,
         jfloat dz, jfloat maxDist, jboolean hitTransparent, jfloatArray out) {
     Volume* vol = handleOf(handle);
@@ -179,7 +179,7 @@ JNIEXPORT jboolean JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_raycast(
 }
 
 /// Sight test between two points; transparent materials never block.
-JNIEXPORT jboolean JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_lineOfSight(
+JNIEXPORT jboolean JNICALL Java_com_ccs_voxelstrike_voxel_NativeBridge_lineOfSight(
         JNIEnv*, jclass, jlong handle, jfloat ax, jfloat ay, jfloat az, jfloat bx, jfloat by,
         jfloat bz) {
     Volume* vol = handleOf(handle);
@@ -193,7 +193,7 @@ JNIEXPORT jboolean JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_lineOfSight(
 }
 
 /// Axis-aligned capsule-ish box test used by the bot mover and by grenade collision.
-JNIEXPORT jboolean JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_boxCollides(
+JNIEXPORT jboolean JNICALL Java_com_ccs_voxelstrike_voxel_NativeBridge_boxCollides(
         JNIEnv*, jclass, jlong handle, jfloat x, jfloat y, jfloat z, jfloat halfWidth,
         jfloat height) {
     Volume* vol = handleOf(handle);
@@ -217,7 +217,7 @@ JNIEXPORT jboolean JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_boxCollides(
 
 /// Chebyshev empty-space distance per brick, in bricks, clamped to 255.
 /// The ray tracer uses it to jump over empty regions instead of stepping voxel by voxel.
-JNIEXPORT jbyteArray JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_buildBrickField(
+JNIEXPORT jbyteArray JNICALL Java_com_ccs_voxelstrike_voxel_NativeBridge_buildBrickField(
         JNIEnv* env, jclass, jlong handle, jint brick) {
     Volume* vol = handleOf(handle);
     if (vol == nullptr || brick <= 0) return nullptr;
@@ -281,7 +281,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_buildBrick
 }
 
 /// Column heights (highest solid voxel + 1) used to build the navigation grid and the minimap.
-JNIEXPORT jbyteArray JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_buildHeightMap(JNIEnv* env,
+JNIEXPORT jbyteArray JNICALL Java_com_ccs_voxelstrike_voxel_NativeBridge_buildHeightMap(JNIEnv* env,
                                                                                     jclass,
                                                                                     jlong handle) {
     Volume* vol = handleOf(handle);

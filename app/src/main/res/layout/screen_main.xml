@@ -39,7 +39,7 @@
             <LinearLayout android:id="@+id/main_menu_actions"
                 android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                 <com.google.android.material.button.MaterialButton android:id="@+id/button_play"
-                    style="@style/Widget.VoxelGun.Button.HomePrimary"
+                    style="@style/Widget.VoxelStrike.Button.HomePrimary"
                     android:layout_width="match_parent" android:layout_height="60dp"
                     android:maxLines="1" android:text="@string/menu_play"
                     app:icon="@drawable/ic_game_play" app:iconGravity="end" />
@@ -47,14 +47,14 @@
                     android:layout_marginTop="8dp" android:orientation="horizontal">
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_arsenal"
-                        style="@style/Widget.VoxelGun.Button.HomeUtility"
+                        style="@style/Widget.VoxelStrike.Button.HomeUtility"
                         android:layout_width="0dp" android:layout_height="match_parent"
                         android:layout_marginEnd="4dp" android:layout_weight="1"
                         android:maxLines="1" android:text="@string/menu_skins"
                         app:icon="@drawable/ic_game_crosshair" app:iconGravity="start" />
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_settings"
-                        style="@style/Widget.VoxelGun.Button.HomeUtility"
+                        style="@style/Widget.VoxelStrike.Button.HomeUtility"
                         android:layout_width="0dp" android:layout_height="match_parent"
                         android:layout_marginStart="4dp" android:layout_weight="1"
                         android:maxLines="1" android:text="@string/menu_settings"
@@ -64,14 +64,14 @@
                     android:layout_marginTop="8dp" android:orientation="horizontal">
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_controls"
-                        style="@style/Widget.VoxelGun.Button.HomeUtility"
+                        style="@style/Widget.VoxelStrike.Button.HomeUtility"
                         android:layout_width="0dp" android:layout_height="match_parent"
                         android:layout_marginEnd="4dp" android:layout_weight="1"
                         android:maxLines="1" android:text="@string/menu_controls"
                         app:icon="@drawable/ic_game_hud" app:iconGravity="start" />
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_stats"
-                        style="@style/Widget.VoxelGun.Button.HomeUtility"
+                        style="@style/Widget.VoxelStrike.Button.HomeUtility"
                         android:layout_width="0dp" android:layout_height="match_parent"
                         android:layout_marginStart="4dp" android:layout_weight="1"
                         android:maxLines="1" android:text="@string/menu_stats"
@@ -82,7 +82,7 @@
     </ScrollView>
 
     <com.google.android.material.card.MaterialCardView android:id="@+id/card_profile"
-        style="@style/Widget.VoxelGun.Card.Profile"
+        style="@style/Widget.VoxelStrike.Card.Profile"
         android:layout_width="264dp" android:layout_height="82dp"
         android:layout_marginTop="24dp" android:layout_marginEnd="28dp"
         android:clickable="true" android:contentDescription="@string/menu_home_profile_edit"

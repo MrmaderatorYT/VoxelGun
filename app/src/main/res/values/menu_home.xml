@@ -6,7 +6,7 @@
     <string name="menu_home_profile_edit">Player profile. Change call sign</string>
     <string name="menu_home_feature_title">URBAN FRONT</string>
     <string name="menu_home_feature_detail">Battle Field · Civic Circle</string>
-    <style name="Widget.VoxelGun.Button.HomePrimary" parent="Widget.VoxelGun.Button.MenuPrimary">
+    <style name="Widget.VoxelStrike.Button.HomePrimary" parent="Widget.VoxelStrike.Button.MenuPrimary">
         <item name="android:textSize">22sp</item>
         <item name="android:letterSpacing">0.06</item>
         <item name="android:gravity">start|center_vertical</item>
@@ -19,7 +19,7 @@
         <item name="iconSize">22dp</item>
         <item name="android:elevation">0dp</item>
     </style>
-    <style name="Widget.VoxelGun.Button.HomeUtility" parent="Widget.VoxelGun.Button.MenuSecondary">
+    <style name="Widget.VoxelStrike.Button.HomeUtility" parent="Widget.VoxelStrike.Button.MenuSecondary">
         <item name="android:minHeight">48dp</item>
         <item name="android:minWidth">0dp</item>
         <item name="android:textSize">13sp</item>

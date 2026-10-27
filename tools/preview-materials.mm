@@ -1,7 +1,7 @@
 // macOS-only visual QA utility, not part of the Android runtime.
 // Renders the actual shared surface GLSL and parses the Java palette (no copied asset colors).
 // clang++ -std=c++17 -Wno-deprecated-declarations tools/preview-materials.mm \
-//   -framework OpenGL -framework AppKit -o /private/tmp/voxelgun-material-preview
+//   -framework OpenGL -framework AppKit -o /private/tmp/voxelstrike-material-preview
 // Run from the repository root with an absolute output PNG path.
 #import <AppKit/AppKit.h>
 #import <OpenGL/OpenGL.h>
@@ -26,7 +26,7 @@ static GLuint compile(GLenum type, NSString *source) {
 }
 int main(int argc, char **argv) { @autoreleasepool {
     if (argc != 2 || argv[1][0] != '/') { fprintf(stderr, "Pass an absolute output PNG path.\n"); return 1; }
-    NSString *java = read(@"app/src/main/java/com/ccs/voxelgun/voxel/Materials.java");
+    NSString *java = read(@"app/src/main/java/com/ccs/voxelstrike/voxel/Materials.java");
     NSMutableDictionary *ids = [NSMutableDictionary dictionary];
     NSRegularExpression *constants = [NSRegularExpression regularExpressionWithPattern:
         @"public static final byte (\\w+) = (?:\\(byte\\) )?(\\d+);" options:0 error:nil];

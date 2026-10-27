@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.ccs.voxelgun.ui.HudView
+    <com.ccs.voxelstrike.ui.HudView
         android:id="@+id/hud_preview"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
@@ -21,7 +21,7 @@
         android:orientation="vertical">
 
         <com.google.android.material.card.MaterialCardView
-            style="@style/Widget.VoxelGun.Card"
+            style="@style/Widget.VoxelStrike.Card"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
@@ -38,7 +38,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/hud_back"
-                    style="@style/Widget.VoxelGun.Button.Back"
+                    style="@style/Widget.VoxelStrike.Button.Back"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:minWidth="0dp"
@@ -129,7 +129,7 @@
         <!-- Global size / opacity / reset: opened from "More", collapsed by default. -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/hud_sheet"
-            style="@style/Widget.VoxelGun.Card"
+            style="@style/Widget.VoxelStrike.Card"
             android:layout_width="320dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"

@@ -9,7 +9,7 @@ import {spawnSync} from 'node:child_process';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../app/src/main/assets/shaders');
 const validator = process.argv[2];
 if (!validator) throw new Error('Pass the glslangValidator executable path.');
-const output = mkdtempSync(join(tmpdir(), 'voxelgun-shaders-'));
+const output = mkdtempSync(join(tmpdir(), 'voxelstrike-shaders-'));
 function expand(file, stack = []) {
     if (stack.includes(file)) throw new Error(`Cyclic shader include: ${file}`);
     return readFileSync(join(root, file), 'utf8').replace(/^\s*#include "([^"]+)"\s*$/gm,

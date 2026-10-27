@@ -18,7 +18,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/keys_back"
-            style="@style/Widget.VoxelGun.Button.Back"
+            style="@style/Widget.VoxelStrike.Button.Back"
             android:layout_width="112dp"
             android:layout_height="48dp"
             android:gravity="start|center_vertical"
@@ -33,11 +33,11 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="@string/settings_keys"
-            android:textAppearance="@style/TextAppearance.VoxelGun.ScreenTitle" />
+            android:textAppearance="@style/TextAppearance.VoxelStrike.ScreenTitle" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/keys_reset"
-            style="@style/Widget.VoxelGun.Button.Back"
+            style="@style/Widget.VoxelStrike.Button.Back"
             android:layout_width="96dp"
             android:layout_height="48dp"
             android:gravity="end|center_vertical"

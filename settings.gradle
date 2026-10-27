@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Voxel Gun"
+rootProject.name = "Voxel Strike"
 include ':app'

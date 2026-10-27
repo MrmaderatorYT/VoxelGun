@@ -224,7 +224,7 @@ jbyteArray pack(JNIEnv* env, const std::vector<Vertex>& vertices,
 
 }  // namespace
 
-extern "C" JNIEXPORT jbyteArray JNICALL Java_com_ccs_voxelgun_voxel_NativeBridge_greedyMesh(
+extern "C" JNIEXPORT jbyteArray JNICALL Java_com_ccs_voxelstrike_voxel_NativeBridge_greedyMesh(
         JNIEnv* env, jclass, jbyteArray padded, jint sx, jint sy, jint sz, jfloat scale, jint pass) {
     jbyte* raw = static_cast<jbyte*>(env->GetPrimitiveArrayCritical(padded, nullptr));
     if (raw == nullptr) return nullptr;

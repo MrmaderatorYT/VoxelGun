@@ -1,6 +1,6 @@
 # JNI uses name-based entry points, so the native facades must not be renamed.
--keep class com.ccs.voxelgun.voxel.NativeBridge { *; }
--keep class com.ccs.voxelgun.audio.NativeSynth { *; }
+-keep class com.ccs.voxelstrike.voxel.NativeBridge { *; }
+-keep class com.ccs.voxelstrike.audio.NativeSynth { *; }
 -keepclasseswithmembernames,includedescriptorclasses class * {
     native <methods>;
 }

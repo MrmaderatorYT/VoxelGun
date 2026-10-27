@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
-        android:name=".VoxelGunApp"
+        android:name=".VoxelStrikeApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -17,7 +17,7 @@
         android:largeHeap="true"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.VoxelGun">
+        android:theme="@style/Theme.VoxelStrike">
 
         <activity
             android:name=".ui.MenuActivity"
@@ -39,7 +39,7 @@
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|density"
             android:launchMode="singleTask"
             android:screenOrientation="sensorLandscape"
-            android:theme="@style/Theme.VoxelGun.Match"
+            android:theme="@style/Theme.VoxelStrike.Match"
             android:windowSoftInputMode="adjustNothing" />
     </application>
 

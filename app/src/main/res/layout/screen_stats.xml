@@ -18,7 +18,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/stats_back"
-            style="@style/Widget.VoxelGun.Button.Back"
+            style="@style/Widget.VoxelStrike.Button.Back"
             android:layout_width="112dp"
             android:layout_height="48dp"
             android:gravity="start|center_vertical"
@@ -33,7 +33,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="@string/menu_stats"
-            android:textAppearance="@style/TextAppearance.VoxelGun.ScreenTitle" />
+            android:textAppearance="@style/TextAppearance.VoxelStrike.ScreenTitle" />
 
         <TextView
             android:id="@+id/stats_coins"
@@ -62,7 +62,7 @@
 
             <!-- Career header: who the player is and how far the level bar has moved. -->
             <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.VoxelGun.Card"
+                style="@style/Widget.VoxelStrike.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardBackgroundColor="@color/game_panel_high"
@@ -119,7 +119,7 @@
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textColor="?attr/colorOnSurfaceVariant" />
             <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.VoxelGun.Card"
+                style="@style/Widget.VoxelStrike.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
@@ -147,7 +147,7 @@
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textColor="?attr/colorOnSurfaceVariant" />
             <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.VoxelGun.Card"
+                style="@style/Widget.VoxelStrike.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
@@ -192,7 +192,7 @@
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/stats_weapons_card"
-                style="@style/Widget.VoxelGun.Card"
+                style="@style/Widget.VoxelStrike.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardBackgroundColor="@color/game_panel"

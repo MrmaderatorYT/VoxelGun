@@ -1,7 +1,7 @@
-import com.ccs.voxelgun.game.*;
-import com.ccs.voxelgun.input.InputState;
-import com.ccs.voxelgun.map.Maps;
-import com.ccs.voxelgun.weapon.WeaponType;
+import com.ccs.voxelstrike.game.*;
+import com.ccs.voxelstrike.input.InputState;
+import com.ccs.voxelstrike.map.Maps;
+import com.ccs.voxelstrike.weapon.WeaponType;
 
 import java.io.IOException;
 import java.io.PrintWriter;

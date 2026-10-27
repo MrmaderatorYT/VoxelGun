@@ -1,4 +1,4 @@
-package com.ccs.voxelgun;
+package com.ccs.voxelstrike;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -13,18 +13,18 @@ import android.util.Log;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
-import com.ccs.voxelgun.game.BattlefieldClass;
-import com.ccs.voxelgun.game.Combatant;
-import com.ccs.voxelgun.game.GameMode;
-import com.ccs.voxelgun.game.Match;
-import com.ccs.voxelgun.game.MatchConfig;
-import com.ccs.voxelgun.game.Team;
-import com.ccs.voxelgun.input.InputState;
-import com.ccs.voxelgun.map.Maps;
-import com.ccs.voxelgun.render.GameRenderer;
-import com.ccs.voxelgun.render.RenderSettings;
-import com.ccs.voxelgun.voxel.NativeBridge;
-import com.ccs.voxelgun.weapon.WeaponType;
+import com.ccs.voxelstrike.game.BattlefieldClass;
+import com.ccs.voxelstrike.game.Combatant;
+import com.ccs.voxelstrike.game.GameMode;
+import com.ccs.voxelstrike.game.Match;
+import com.ccs.voxelstrike.game.MatchConfig;
+import com.ccs.voxelstrike.game.Team;
+import com.ccs.voxelstrike.input.InputState;
+import com.ccs.voxelstrike.map.Maps;
+import com.ccs.voxelstrike.render.GameRenderer;
+import com.ccs.voxelstrike.render.RenderSettings;
+import com.ccs.voxelstrike.voxel.NativeBridge;
+import com.ccs.voxelstrike.weapon.WeaponType;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,8 +47,8 @@ import java.util.Map;
  * MANUAL ASSET CAPTURE UTILITY, intentionally outside every Gradle source set.
  *
  * This is not a regression test and must not be kept in androidTest. An operator may explicitly
- * copy it temporarily into app/src/androidTest/java/com/ccs/voxelgun/MenuBattleCapture.java,
- * build the instrumentation APK, run only com.ccs.voxelgun.MenuBattleCapture, pull the resulting
+ * copy it temporarily into app/src/androidTest/java/com/ccs/voxelstrike/MenuBattleCapture.java,
+ * build the instrumentation APK, run only com.ccs.voxelstrike.MenuBattleCapture, pull the resulting
  * target-cache PNGs, and remove that temporary source. The JUnit entry point is only the manual
  * Android launcher. It captures the actual game renderer on the device; it generates no artwork
  * and performs no compositing, color treatment, cropping or image retouching.

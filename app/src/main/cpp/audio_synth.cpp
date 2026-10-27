@@ -168,7 +168,7 @@ void renderWhizz(std::vector<float>& out, int sampleRate, Rng& rng) {
 /// kind: 0 rifle, 1 pistol, 2 shotgun, 3 sniper, 4 smg, 5 explosion, 6 step, 7 click,
 ///       8 magazine, 9 hit marker, 10 headshot, 11 swing, 12 stab, 13 land, 14 whizz,
 ///       15 dry fire, 16 ui, 17 round start, 18 death, 19 pin pull, 20 lmg
-extern "C" JNIEXPORT jshortArray JNICALL Java_com_ccs_voxelgun_audio_NativeSynth_render(
+extern "C" JNIEXPORT jshortArray JNICALL Java_com_ccs_voxelstrike_audio_NativeSynth_render(
         JNIEnv* env, jclass, jint kind, jint sampleRate, jint seed, jfloat gain) {
     static const float kDurations[21] = {0.34f, 0.24f, 0.46f, 0.62f, 0.22f, 1.30f, 0.10f,
                                          0.07f, 0.16f, 0.09f, 0.16f, 0.20f, 0.18f, 0.14f,

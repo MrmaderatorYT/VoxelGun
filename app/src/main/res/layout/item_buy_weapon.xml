@@ -2,7 +2,7 @@
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/weapon_card"
-    style="@style/Widget.VoxelGun.Card.BuyWeapon"
+    style="@style/Widget.VoxelStrike.Card.BuyWeapon"
     android:layout_width="match_parent"
     android:layout_height="108dp"
     android:clickable="true"
@@ -73,7 +73,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/weapon_action"
-                    style="@style/Widget.VoxelGun.Button.BuyAction"
+                    style="@style/Widget.VoxelStrike.Button.BuyAction"
                     android:layout_width="84dp"
                     android:layout_height="34dp"
                     android:layout_marginStart="5dp" />

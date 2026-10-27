@@ -18,7 +18,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/play_back"
-            style="@style/Widget.VoxelGun.Button.Back"
+            style="@style/Widget.VoxelStrike.Button.Back"
             android:layout_width="112dp"
             android:layout_height="48dp"
             android:gravity="start|center_vertical"
@@ -33,7 +33,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="@string/menu_play"
-            android:textAppearance="@style/TextAppearance.VoxelGun.ScreenTitle" />
+            android:textAppearance="@style/TextAppearance.VoxelStrike.ScreenTitle" />
 
         <TextView
             android:layout_width="96dp"
@@ -63,7 +63,7 @@
             android:paddingBottom="8dp">
 
             <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.VoxelGun.Card"
+                style="@style/Widget.VoxelStrike.Card"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="7dp"
@@ -94,7 +94,7 @@
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.VoxelGun.Card"
+                style="@style/Widget.VoxelStrike.Card"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="7dp"
@@ -326,7 +326,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/button_start"
-        style="@style/Widget.VoxelGun.Button.MenuPrimary"
+        style="@style/Widget.VoxelStrike.Button.MenuPrimary"
         android:layout_width="match_parent"
         android:layout_height="52dp"
         android:layout_marginTop="6dp"

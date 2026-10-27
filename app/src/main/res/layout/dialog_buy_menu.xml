@@ -6,7 +6,7 @@
     android:clipToPadding="false"
     app:cardBackgroundColor="#F4070C12"
     app:cardElevation="0dp"
-    app:shapeAppearance="@style/ShapeAppearance.VoxelGun.BuyPanel"
+    app:shapeAppearance="@style/ShapeAppearance.VoxelStrike.BuyPanel"
     app:strokeColor="@color/game_accent"
     app:strokeWidth="1dp">
 
@@ -46,7 +46,7 @@
 
                 <TextView
                     android:id="@+id/buy_title_label"
-                    style="@style/TextAppearance.VoxelGun.ScreenTitle"
+                    style="@style/TextAppearance.VoxelStrike.ScreenTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="1dp"
@@ -55,7 +55,7 @@
             </LinearLayout>
 
             <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.VoxelGun.Card.BuyWallet"
+                style="@style/Widget.VoxelStrike.Card.BuyWallet"
                 android:layout_width="170dp"
                 android:layout_height="54dp">
 
@@ -94,7 +94,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buy_close_top"
-                style="@style/Widget.VoxelGun.Button.BuyClose"
+                style="@style/Widget.VoxelStrike.Button.BuyClose"
                 android:layout_width="44dp"
                 android:layout_height="44dp"
                 android:layout_marginStart="6dp"
@@ -227,7 +227,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buy_close"
-                style="@style/Widget.VoxelGun.Button.BuyReturn"
+                style="@style/Widget.VoxelStrike.Button.BuyReturn"
                 android:layout_width="154dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="12dp"

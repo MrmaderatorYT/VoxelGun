@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="ShapeAppearance.VoxelGun.Control" parent="ShapeAppearance.Material3.SmallComponent">
+    <style name="ShapeAppearance.VoxelStrike.Control" parent="ShapeAppearance.Material3.SmallComponent">
         <item name="cornerFamily">cut</item>
         <item name="cornerSize">5dp</item>
     </style>
 
-    <style name="ShapeAppearance.VoxelGun.Panel" parent="ShapeAppearance.Material3.MediumComponent">
+    <style name="ShapeAppearance.VoxelStrike.Panel" parent="ShapeAppearance.Material3.MediumComponent">
         <item name="cornerFamily">cut</item>
         <item name="cornerSize">10dp</item>
     </style>
 
-    <style name="ShapeAppearance.VoxelGun.BuyPanel" parent="ShapeAppearance.Material3.LargeComponent">
+    <style name="ShapeAppearance.VoxelStrike.BuyPanel" parent="ShapeAppearance.Material3.LargeComponent">
         <item name="cornerFamilyTopLeft">cut</item>
         <item name="cornerSizeTopLeft">18dp</item>
         <item name="cornerFamilyTopRight">cut</item>
@@ -21,7 +21,7 @@
         <item name="cornerSizeBottomLeft">4dp</item>
     </style>
 
-    <style name="Base.Theme.VoxelGun" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Base.Theme.VoxelStrike" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/md_primary</item>
         <item name="colorOnPrimary">@color/md_on_primary</item>
         <item name="colorPrimaryContainer">@color/md_primary_container</item>
@@ -52,26 +52,26 @@
         <item name="colorControlActivated">@color/game_accent</item>
         <item name="android:fontFamily">sans-serif-condensed</item>
         <item name="fontFamily">sans-serif-condensed</item>
-        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.VoxelGun.Control</item>
-        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.VoxelGun.Panel</item>
-        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.VoxelGun.Panel</item>
-        <item name="materialButtonStyle">@style/Widget.VoxelGun.Button</item>
-        <item name="materialButtonOutlinedStyle">@style/Widget.VoxelGun.Button.Outlined</item>
-        <item name="materialCardViewStyle">@style/Widget.VoxelGun.Card</item>
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.VoxelStrike.Control</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.VoxelStrike.Panel</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.VoxelStrike.Panel</item>
+        <item name="materialButtonStyle">@style/Widget.VoxelStrike.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.VoxelStrike.Button.Outlined</item>
+        <item name="materialCardViewStyle">@style/Widget.VoxelStrike.Card</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowBackground">@drawable/bg_menu</item>
     </style>
 
-    <style name="Theme.VoxelGun" parent="Base.Theme.VoxelGun" />
+    <style name="Theme.VoxelStrike" parent="Base.Theme.VoxelStrike" />
 
-    <style name="Theme.VoxelGun.Match" parent="Base.Theme.VoxelGun">
+    <style name="Theme.VoxelStrike.Match" parent="Base.Theme.VoxelStrike">
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:windowNoTitle">true</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button" parent="Widget.Material3.Button">
+    <style name="Widget.VoxelStrike.Button" parent="Widget.Material3.Button">
         <item name="android:fontFamily">sans-serif-condensed</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>
@@ -83,12 +83,12 @@
         <item name="android:textColor">@color/md_on_primary</item>
         <item name="backgroundTint">@color/game_button_primary</item>
         <item name="rippleColor">@color/game_ripple</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.VoxelGun.Control</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VoxelStrike.Control</item>
         <item name="iconTint">@color/md_on_primary</item>
         <item name="iconPadding">10dp</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button.MenuPrimary" parent="Widget.VoxelGun.Button">
+    <style name="Widget.VoxelStrike.Button.MenuPrimary" parent="Widget.VoxelStrike.Button">
         <item name="android:minHeight">56dp</item>
         <item name="android:textSize">17sp</item>
         <item name="android:letterSpacing">0.12</item>
@@ -96,7 +96,7 @@
         <item name="strokeWidth">1dp</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
+    <style name="Widget.VoxelStrike.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
         <item name="android:fontFamily">sans-serif-condensed</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>
@@ -105,13 +105,13 @@
         <item name="android:minHeight">46dp</item>
         <item name="android:textColor">@color/game_text</item>
         <item name="backgroundTint">@color/game_button_secondary</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.VoxelGun.Control</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VoxelStrike.Control</item>
         <item name="strokeColor">@color/game_button_stroke</item>
         <item name="strokeWidth">1dp</item>
         <item name="rippleColor">@color/game_ripple</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+    <style name="Widget.VoxelStrike.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
         <item name="android:fontFamily">sans-serif-condensed</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>
@@ -120,13 +120,13 @@
         <item name="android:minHeight">46dp</item>
         <item name="android:textColor">@color/game_text</item>
         <item name="backgroundTint">@color/game_button_secondary</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.VoxelGun.Control</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VoxelStrike.Control</item>
         <item name="strokeColor">@color/game_button_stroke</item>
         <item name="strokeWidth">1dp</item>
         <item name="rippleColor">@color/game_ripple</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button.MenuSecondary" parent="Widget.VoxelGun.Button.Outlined">
+    <style name="Widget.VoxelStrike.Button.MenuSecondary" parent="Widget.VoxelStrike.Button.Outlined">
         <item name="android:minHeight">44dp</item>
         <item name="android:textSize">11sp</item>
         <item name="android:paddingStart">10dp</item>
@@ -136,7 +136,7 @@
         <item name="iconSize">17dp</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button.Back" parent="Widget.Material3.Button.TextButton">
+    <style name="Widget.VoxelStrike.Button.Back" parent="Widget.Material3.Button.TextButton">
         <item name="android:fontFamily">sans-serif-condensed</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>
@@ -153,12 +153,12 @@
         <item name="android:insetBottom">0dp</item>
         <item name="iconSize">18dp</item>
         <item name="android:textColor">@color/game_hud</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.VoxelGun.Control</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VoxelStrike.Control</item>
         <item name="rippleColor">@color/game_ripple</item>
         <item name="iconTint">@color/game_hud</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button.SelectorArrow" parent="Widget.Material3.Button.TextButton">
+    <style name="Widget.VoxelStrike.Button.SelectorArrow" parent="Widget.Material3.Button.TextButton">
         <item name="android:fontFamily">sans-serif-condensed</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textSize">24sp</item>
@@ -168,13 +168,13 @@
         <item name="android:paddingEnd">4dp</item>
         <item name="android:textColor">@color/game_hud</item>
         <item name="backgroundTint">@android:color/transparent</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.VoxelGun.Control</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VoxelStrike.Control</item>
         <item name="rippleColor">@color/game_ripple</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button.BuyTab" parent="Widget.Material3.Button.OutlinedButton">
+    <style name="Widget.VoxelStrike.Button.BuyTab" parent="Widget.Material3.Button.OutlinedButton">
         <item name="android:fontFamily">sans-serif-condensed</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>
@@ -188,13 +188,13 @@
         <item name="backgroundTint">@color/game_buy_tab_background</item>
         <item name="strokeColor">@color/game_button_stroke</item>
         <item name="strokeWidth">1dp</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.VoxelGun.Control</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VoxelStrike.Control</item>
         <item name="rippleColor">@color/game_ripple</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button.BuyAction" parent="Widget.VoxelGun.Button.Tonal">
+    <style name="Widget.VoxelStrike.Button.BuyAction" parent="Widget.VoxelStrike.Button.Tonal">
         <item name="android:minWidth">84dp</item>
         <item name="android:minHeight">34dp</item>
         <item name="android:textSize">9sp</item>
@@ -205,7 +205,7 @@
         <item name="android:insetBottom">0dp</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button.BuyReturn" parent="Widget.VoxelGun.Button">
+    <style name="Widget.VoxelStrike.Button.BuyReturn" parent="Widget.VoxelStrike.Button">
         <item name="android:minHeight">40dp</item>
         <item name="android:textSize">10sp</item>
         <item name="android:letterSpacing">0.12</item>
@@ -217,7 +217,7 @@
         <item name="strokeWidth">1dp</item>
     </style>
 
-    <style name="Widget.VoxelGun.Button.BuyClose" parent="Widget.Material3.Button.TextButton">
+    <style name="Widget.VoxelStrike.Button.BuyClose" parent="Widget.Material3.Button.TextButton">
         <item name="android:fontFamily">sans-serif-light</item>
         <item name="android:textSize">25sp</item>
         <item name="android:minWidth">44dp</item>
@@ -227,44 +227,44 @@
         <item name="android:textColor">@color/game_text_muted</item>
         <item name="backgroundTint">@android:color/transparent</item>
         <item name="rippleColor">@color/game_ripple</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.VoxelGun.Control</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VoxelStrike.Control</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
     </style>
 
-    <style name="Widget.VoxelGun.Card" parent="Widget.Material3.CardView.Filled">
+    <style name="Widget.VoxelStrike.Card" parent="Widget.Material3.CardView.Filled">
         <item name="cardBackgroundColor">@color/game_panel</item>
         <item name="cardElevation">0dp</item>
         <item name="strokeColor">@color/game_line</item>
         <item name="strokeWidth">1dp</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.VoxelGun.Panel</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VoxelStrike.Panel</item>
         <item name="contentPadding">0dp</item>
     </style>
 
-    <style name="Widget.VoxelGun.Card.Profile" parent="Widget.VoxelGun.Card">
+    <style name="Widget.VoxelStrike.Card.Profile" parent="Widget.VoxelStrike.Card">
         <item name="cardBackgroundColor">@color/game_panel_high</item>
         <item name="strokeColor">#8BFF8A1F</item>
     </style>
 
-    <style name="Widget.VoxelGun.Card.BuyWallet" parent="Widget.VoxelGun.Card">
+    <style name="Widget.VoxelStrike.Card.BuyWallet" parent="Widget.VoxelStrike.Card">
         <item name="cardBackgroundColor">#E6121A24</item>
         <item name="strokeColor">#8BFF8A1F</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.VoxelGun.Control</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VoxelStrike.Control</item>
     </style>
 
-    <style name="Widget.VoxelGun.Card.BuyWeapon" parent="Widget.VoxelGun.Card">
+    <style name="Widget.VoxelStrike.Card.BuyWeapon" parent="Widget.VoxelStrike.Card">
         <item name="cardBackgroundColor">#E60C131C</item>
         <item name="strokeColor">#5C5E6F80</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.VoxelGun.Control</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VoxelStrike.Control</item>
     </style>
 
-    <style name="TextAppearance.VoxelGun.Title" parent="TextAppearance.Material3.HeadlineMedium">
+    <style name="TextAppearance.VoxelStrike.Title" parent="TextAppearance.Material3.HeadlineMedium">
         <item name="android:fontFamily">sans-serif-black</item>
         <item name="android:letterSpacing">0.08</item>
         <item name="android:textStyle">bold</item>
     </style>
 
-    <style name="TextAppearance.VoxelGun.ScreenTitle" parent="TextAppearance.Material3.TitleLarge">
+    <style name="TextAppearance.VoxelStrike.ScreenTitle" parent="TextAppearance.Material3.TitleLarge">
         <item name="android:fontFamily">sans-serif-condensed</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>

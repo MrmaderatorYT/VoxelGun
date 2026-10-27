@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <com.ccs.voxelgun.ui.HudView
+    <com.ccs.voxelstrike.ui.HudView
         android:id="@+id/hud"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
@@ -29,7 +29,7 @@
             android:id="@+id/loading_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="@style/TextAppearance.VoxelGun.Title"
+            android:textAppearance="@style/TextAppearance.VoxelStrike.Title"
             android:textColor="?attr/colorPrimary"
             android:textSize="30sp" />
 
@@ -70,19 +70,19 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="18dp"
                 android:text="@string/match_paused"
-                android:textAppearance="@style/TextAppearance.VoxelGun.Title"
+                android:textAppearance="@style/TextAppearance.VoxelStrike.Title"
                 android:textColor="?attr/colorOnSurface" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_resume"
-                style="@style/Widget.VoxelGun.Button"
+                style="@style/Widget.VoxelStrike.Button"
                 android:layout_width="240dp"
                 android:layout_height="wrap_content"
                 android:text="@string/match_resume" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_pause_settings"
-                style="@style/Widget.VoxelGun.Button.Tonal"
+                style="@style/Widget.VoxelStrike.Button.Tonal"
                 android:layout_width="240dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -90,7 +90,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_course_restart"
-                style="@style/Widget.VoxelGun.Button.Tonal"
+                style="@style/Widget.VoxelStrike.Button.Tonal"
                 android:layout_width="240dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -99,7 +99,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_leave"
-                style="@style/Widget.VoxelGun.Button.Outlined"
+                style="@style/Widget.VoxelStrike.Button.Outlined"
                 android:layout_width="240dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -107,7 +107,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_performance_details"
-                style="@style/Widget.VoxelGun.Button.Outlined"
+                style="@style/Widget.VoxelStrike.Button.Outlined"
                 android:layout_width="240dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
@@ -137,7 +137,7 @@
                 android:id="@+id/results_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.VoxelGun.Title"
+                android:textAppearance="@style/TextAppearance.VoxelStrike.Title"
                 android:textColor="?attr/colorPrimary"
                 android:textSize="40sp" />
 
@@ -169,7 +169,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_rematch"
-                    style="@style/Widget.VoxelGun.Button.Tonal"
+                    style="@style/Widget.VoxelStrike.Button.Tonal"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="10dp"
@@ -177,7 +177,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_continue"
-                    style="@style/Widget.VoxelGun.Button"
+                    style="@style/Widget.VoxelStrike.Button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/match_continue" />
