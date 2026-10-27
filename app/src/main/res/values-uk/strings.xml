@@ -14,7 +14,7 @@
     <string name="menu_difficulty">Складність</string>
     <string name="menu_controls">КЕРУВАННЯ</string>
     <string name="menu_tagline">Автономний тактичний voxel-бій</string>
-    <string name="menu_status">● ОФЛАЙН // ЗБІРКА 1.0.1</string>
+    <string name="menu_status">● ОФЛАЙН // ЗБІРКА 1.0.0</string>
     <string name="profile_operator">Профіль бійця</string>
     <string name="profile_tap_edit">Торкніться, щоб змінити позивний</string>
     <string name="menu_config_label">Параметри матчу</string>
